@@ -621,14 +621,18 @@ with charts_tab:
                     prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[0]
                     x_column = cols[0].selectbox("X axis", list(clean_df.columns), index=list(clean_df.columns).index(prior_x), key=f"dashboard_tile_{index}_line_x")
                     y_column = cols[1].selectbox("Measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_line_y")
-                    aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_line_agg")
+                    aggregation_options = ["Mean", "Sum", "Count"]
+                    prior_aggregation = tile.get("aggregation") if tile.get("aggregation") in aggregation_options else "Mean"
+                    aggregation = cols[2].selectbox("Calculation", aggregation_options, index=aggregation_options.index(prior_aggregation), key=f"dashboard_tile_{index}_line_agg")
                 elif chart_type == "Bar":
                     cols = st.columns(3)
                     category_options = [column for column in clean_df.columns if column not in numeric_columns] or list(clean_df.columns)
                     prior_category = tile.get("category_column") if tile.get("category_column") in category_options else category_options[0]
                     category_column = cols[0].selectbox("Group by", category_options, index=category_options.index(prior_category), key=f"dashboard_tile_{index}_bar_category")
                     y_column = cols[1].selectbox("Measure", numeric_columns, key=f"dashboard_tile_{index}_bar_measure")
-                    aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_bar_agg")
+                    aggregation_options = ["Mean", "Sum", "Count"]
+                    prior_aggregation = tile.get("aggregation") if tile.get("aggregation") in aggregation_options else "Mean"
+                    aggregation = cols[2].selectbox("Calculation", aggregation_options, index=aggregation_options.index(prior_aggregation), key=f"dashboard_tile_{index}_bar_agg")
                 else:
                     category_column = st.selectbox("Count rows by", list(clean_df.columns), index=list(clean_df.columns).index(tile.get("category_column")) if tile.get("category_column") in clean_df.columns else 0, key=f"dashboard_tile_{index}_count_category")
                 draft_tiles.append({"title": title.strip() or f"Chart {index + 1}", "chart_type": chart_type, "x_column": x_column, "category_column": category_column, "y_column": y_column, "aggregation": aggregation})
@@ -640,7 +644,8 @@ with charts_tab:
         st.info("No rows match the selected filter. Choose more values to see the dashboard.")
     else:
         if numeric_columns:
-            focus_measure = numeric_columns[0]
+            metric_priorities = ("revenue", "sales", "amount", "profit", "total", "value", "price")
+            focus_measure = next((column for word in metric_priorities for column in numeric_columns if word in str(column).casefold()), numeric_columns[0])
             value = filtered_df[focus_measure].sum()
             average = filtered_df[focus_measure].mean()
             median = filtered_df[focus_measure].median()
