@@ -15,14 +15,15 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-On Windows PowerShell, activate with `\.venv\Scripts\Activate.ps1`; on macOS/Linux, use `source .venv/bin/activate`. The app opens with a built-in messy sales dataset so the first run produces visible results without an API key or file upload. Use **Upload my file** to work with your own `.csv`, `.xlsx`, or `.xls` file.
+On Windows PowerShell, activate with `\.venv\Scripts\Activate.ps1`; on macOS/Linux, use `source .venv/bin/activate`. The app opens with a built-in messy sales dataset so the first run produces visible results without an API key or file upload. Use **Upload my file** to work with your own `.csv`, `.tsv`, `.json`, `.xlsx`, or `.xls` file.
 
 ## What the app produces
 
 - A shape, column, missing-value, and duplicate profile.
 - Side-by-side before/after previews and an itemized cleaning log.
 - Downloadable cleaned CSV and Excel workbook.
-- Bar, line, scatter, and histogram charts built from the cleaned data.
+- A configurable dashboard with 1–6 count, bar, line, scatter, histogram, and KPI tiles, plus a shared filter.
+- Downloadable dashboard layouts in JSON that can be loaded again with compatible or different datasets.
 - A Markdown and JSON analysis report with cautious next-step recommendations.
 - SQLite starter queries and a reproducible pandas analysis script.
 - A local question-and-answer assistant for common dataset questions.
@@ -47,8 +48,9 @@ requirements.txt               Pinned runtime dependencies
 
 ## Data handling and limits
 
-Uploads are read in memory for the current Streamlit session and are not written into the repository. Cloud answers are off by default. If enabled and confirmed, a small sample and the question are sent to the configured OpenAI API. The app does not validate source accuracy, understand an organization's business rules, or prove causation. Treat correlations, unusual-value flags, and generated recommendations as leads for human review. See [data and privacy notes](docs/DATA_AND_PRIVACY.md).
+CSV, TSV, JSON, and Excel uploads are read in memory for the current Streamlit session and are not written into the repository. Dashboard JSON exports contain chart and filter settings, never uploaded rows. Cloud answers are off by default. If enabled and confirmed, a small sample and the question are sent to the configured OpenAI API. The app does not validate source accuracy, understand an organization's business rules, or prove causation. Treat correlations, unusual-value flags, and generated recommendations as leads for human review. See [data and privacy notes](docs/DATA_AND_PRIVACY.md).
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
