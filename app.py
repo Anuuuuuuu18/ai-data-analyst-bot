@@ -19,7 +19,7 @@ from analyst import answer_question, clean_data, profile_data, python_starter, r
 APP_DIR = Path(__file__).parent
 DEMO_FILE = APP_DIR / "sample_data" / "sales_messy.csv"
 
-st.set_page_config(page_title="AI Data Analyst Bot", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI Data Analyst Bot", page_icon="📊", layout="wide", initial_sidebar_state="collapsed")
 
 
 @st.cache_data(show_spinner=False)
