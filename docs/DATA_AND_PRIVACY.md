@@ -2,7 +2,7 @@
 
 ## Local analysis
 
-CSV and Excel uploads are consumed in memory by the Streamlit session. The app does not save uploads to the repository or a local output folder. Download buttons create files from the current in-memory result. Formula-like text is prefixed in CSV and Excel exports so spreadsheet software displays it as text. The demo sales dataset is fictional.
+Delimited text, JSON/JSONL, Parquet, PDF, Excel, and OpenDocument spreadsheet uploads are consumed in memory by the Streamlit session. The app does not save uploads to the repository or a local output folder. PDF tables are extracted when detected; otherwise selectable or OCR-recognized text becomes one record per page. OCR uses the English Tesseract language model. Download buttons create files from the current in-memory result. Formula-like text is prefixed in CSV and Excel exports so spreadsheet software displays it as text. The demo sales dataset is fictional.
 
 ## Optional cloud answers
 
@@ -22,3 +22,4 @@ The API key is read from the `OPENAI_API_KEY` environment variable or Streamlit 
 ## Demo data
 
 `sample_data/sales_messy.csv` is fictional. It intentionally includes blank values, inconsistent whitespace, and an exact repeated row to demonstrate the review workflow. It is not based on a real business or customer.
+
