@@ -20,7 +20,47 @@ from analyst import answer_question, clean_data, profile_data, python_starter, r
 APP_DIR = Path(__file__).parent
 DEMO_FILE = APP_DIR / "sample_data" / "sales_messy.csv"
 
-st.set_page_config(page_title="AI Data Analyst Bot", page_icon="📊", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Lumen | AI Data Analyst", page_icon=":material/auto_awesome:", layout="wide", initial_sidebar_state="collapsed")
+
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+    :root { --lumen-aqua: #69f0d0; --lumen-lilac: #b49aff; --lumen-muted: #9aa8bd; }
+    html, body, [class*="stApp"] { font-family: 'Manrope', sans-serif; }
+    [data-testid="stAppViewContainer"] { background: radial-gradient(ellipse at 8% 0%, rgba(63, 116, 151, .17), transparent 34%), radial-gradient(ellipse at 92% 7%, rgba(121, 82, 164, .16), transparent 31%), #080d16; }
+    [data-testid="stHeader"] { background: rgba(8, 13, 22, .76); }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #111a28 0%, #0d1420 100%); border-right: 1px solid rgba(155, 179, 208, .12); }
+    [data-testid="stMainBlockContainer"] { max-width: 1500px; padding-top: 1.8rem; padding-bottom: 4rem; }
+    [data-testid="stMetric"] { background: linear-gradient(145deg, rgba(24, 36, 52, .92), rgba(15, 23, 35, .96)); border: 1px solid rgba(148, 171, 201, .15); border-radius: 18px; padding: 18px 20px; box-shadow: 0 10px 30px rgba(0,0,0,.14); }
+    [data-testid="stMetricLabel"] { color: #aab8ca; font-size: .78rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+    [data-testid="stMetricValue"] { color: #f5f8ff; font-weight: 800; letter-spacing: -.045em; }
+    [data-testid="stMetricDelta"] { font-size: .76rem; }
+    [data-testid="stVerticalBlockBorderWrapper"] > div { border-color: rgba(148, 171, 201, .16); border-radius: 20px; background: linear-gradient(145deg, rgba(19, 29, 43, .72), rgba(12, 19, 30, .72)); }
+    [data-testid="stTabs"] [role="tablist"] { gap: .45rem; border-bottom: 1px solid rgba(148, 171, 201, .14); }
+    [data-testid="stTabs"] button[role="tab"] { border-radius: 12px 12px 0 0; padding: .85rem 1rem; color: #9aa8bd; }
+    [data-testid="stTabs"] button[role="tab"][aria-selected="true"] { color: var(--lumen-aqua); }
+    [data-testid="stButton"] button, [data-testid="stDownloadButton"] button { border-radius: 12px; font-weight: 700; transition: transform .16s ease, border-color .16s ease; }
+    [data-testid="stButton"] button:hover, [data-testid="stDownloadButton"] button:hover { transform: translateY(-1px); border-color: var(--lumen-aqua); }
+    [data-testid="stDataFrame"] { border: 1px solid rgba(148, 171, 201, .14); border-radius: 14px; overflow: hidden; }
+    .lumen-hero { position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; min-height: 250px; padding: 34px 42px; margin: 0 0 26px; border: 1px solid rgba(146, 190, 214, .18); border-radius: 26px; background: linear-gradient(112deg, rgba(22, 39, 56, .96) 0%, rgba(20, 31, 49, .96) 55%, rgba(43, 31, 66, .95) 100%); box-shadow: 0 24px 70px rgba(0,0,0,.22); }
+    .lumen-hero:after { content: ''; position: absolute; width: 340px; height: 340px; right: 7%; top: -220px; border-radius: 50%; background: rgba(105,240,208,.18); filter: blur(55px); }
+    .lumen-copy { position: relative; z-index: 1; max-width: 700px; }
+    .lumen-kicker { display: inline-flex; align-items: center; gap: 8px; color: #a9f5e5; font: 500 11px 'DM Mono', monospace; letter-spacing: .15em; text-transform: uppercase; }
+    .lumen-kicker span { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #69f0d0; box-shadow: 0 0 14px #69f0d0; }
+    .lumen-title { margin: 15px 0 10px; color: #f7f8ff; font-size: clamp(32px, 4vw, 50px); line-height: 1.05; letter-spacing: -.055em; font-weight: 800; }
+    .lumen-title em { color: #83e9d5; font-style: normal; }
+    .lumen-description { max-width: 590px; margin: 0; color: #b6c2d2; font-size: 15px; line-height: 1.75; }
+    .lumen-signal { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 60px); align-items: end; gap: 9px; height: 112px; padding: 20px; border: 1px solid rgba(178,197,222,.18); border-radius: 18px; background: rgba(7,13,23,.3); transform: rotate(-4deg); }
+    .lumen-signal i { display: block; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, #83f1d6, #6d8df8); box-shadow: 0 0 22px rgba(105,240,208,.16); }
+    .lumen-signal i:nth-child(1) { height: 34%; opacity: .65; } .lumen-signal i:nth-child(2) { height: 62%; opacity: .82; } .lumen-signal i:nth-child(3) { height: 94%; }
+    .section-kicker { color: #8497ad; font: 500 11px 'DM Mono', monospace; letter-spacing: .13em; text-transform: uppercase; }
+    .chart-heading { color: #f4f7fc; font-size: 1.08rem; font-weight: 750; letter-spacing: -.02em; }
+    @media (max-width: 720px) { .lumen-hero { padding: 26px 23px; min-height: unset; } .lumen-signal { display: none; } }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 @st.cache_data(show_spinner=False)
@@ -123,21 +163,22 @@ def make_chart(
 ) -> tuple[alt.Chart, str]:
     source_rows = len(frame)
     chart_frame = frame if source_rows <= 4_000 else frame.sample(4_000, random_state=17)
-    base = alt.Chart(chart_frame).properties(height=380)
+    base = alt.Chart(chart_frame).properties(height=310)
+    axis_style = alt.Axis(labelColor="#aab8ca", titleColor="#d5deeb", gridColor="#263547", domainColor="#526277", tickColor="#526277", labelFont="Manrope", titleFont="Manrope")
     sample_note = f" · deterministic sample of 4,000 from {source_rows:,} rows" if source_rows > 4_000 else ""
     if chart_type == "Histogram":
-        chart = base.mark_bar(color="#34b39a", cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-            x=alt.X(field=x_column, type="quantitative", bin=alt.Bin(maxbins=28), title=x_column),
-            y=alt.Y(aggregate="count", type="quantitative", title="Number of rows"),
+        chart = base.mark_bar(color="#69f0d0", cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+            x=alt.X(field=x_column, type="quantitative", bin=alt.Bin(maxbins=28), title=x_column, axis=axis_style),
+            y=alt.Y(aggregate="count", type="quantitative", title="Number of rows", axis=axis_style),
             tooltip=[alt.Tooltip("count():Q", title="Rows")],
         )
         return chart, f"Distribution of {x_column}{sample_note}"
     if chart_type == "Count":
         if not category_column:
             raise ValueError("Choose a column for the count chart.")
-        chart = base.mark_bar(color="#34b39a", cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-            x=alt.X(field=category_column, type="nominal", sort="-y", title=category_column),
-            y=alt.Y(aggregate="count", type="quantitative", title="Number of rows"),
+        chart = base.mark_bar(color="#69f0d0", cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+            x=alt.X(field=category_column, type="nominal", sort="-y", title=category_column, axis=axis_style),
+            y=alt.Y(aggregate="count", type="quantitative", title="Number of rows", axis=axis_style),
             tooltip=[alt.Tooltip(field=category_column, type="nominal"), alt.Tooltip(aggregate="count", type="quantitative", title="Rows")],
         )
         return chart, f"Row count by {category_column}{sample_note}"
@@ -146,8 +187,8 @@ def make_chart(
             raise ValueError("Choose both numeric axes for a scatter chart.")
         correlation = frame[[x_column, y_column]].corr(numeric_only=True).iloc[0, 1]
         association = f"Pearson correlation: {correlation:+.2f}" if pd.notna(correlation) else "Correlation unavailable"
-        chart = base.mark_circle(size=78, opacity=.7, color="#3f88c5").encode(
-            x=alt.X(field=x_column, type="quantitative", title=x_column), y=alt.Y(field=y_column, type="quantitative", title=y_column),
+        chart = base.mark_circle(size=82, opacity=.78, color="#b49aff", stroke="#e6ddff", strokeWidth=.4).encode(
+            x=alt.X(field=x_column, type="quantitative", title=x_column, axis=axis_style), y=alt.Y(field=y_column, type="quantitative", title=y_column, axis=axis_style),
             tooltip=[x_column, y_column],
         ).interactive()
         return chart, association + " · association does not establish cause" + sample_note
@@ -155,19 +196,19 @@ def make_chart(
         if not y_column:
             raise ValueError("Choose a numeric measure for a line chart.")
         x_type = "temporal" if pd.api.types.is_datetime64_any_dtype(frame[x_column]) else "quantitative" if pd.api.types.is_numeric_dtype(frame[x_column]) else "nominal"
-        chart = base.mark_line(point=True, color="#34b39a").encode(
-            x=alt.X(field=x_column, type=x_type, title=x_column),
-            y=alt.Y(field=y_column, type="quantitative", aggregate=aggregation.lower(), title=f"{aggregation} {y_column}"),
+        chart = base.mark_line(point=alt.OverlayMarkDef(size=62, filled=True), color="#69f0d0", strokeWidth=3).encode(
+            x=alt.X(field=x_column, type=x_type, title=x_column, axis=axis_style),
+            y=alt.Y(field=y_column, type="quantitative", aggregate=aggregation.lower(), title=f"{aggregation} {y_column}", axis=axis_style),
             tooltip=[alt.Tooltip(field=x_column, type=x_type), alt.Tooltip(field=y_column, type="quantitative", aggregate=aggregation.lower(), format=",.2f")],
         ).interactive()
         return chart, "The chart follows the selected measure over the selected x-axis." + sample_note
     if not y_column or not category_column:
         raise ValueError("Choose a category and a numeric measure for a bar chart.")
     aggregate = {"Mean": "mean", "Sum": "sum", "Median": "median", "Count": "count"}[aggregation]
-    y_encoding = alt.Y(field=y_column, type="quantitative", aggregate=aggregate, title=f"{aggregation} {y_column}")
     tooltip = [alt.Tooltip(field=category_column, type="nominal"), alt.Tooltip(field=y_column, type="quantitative", aggregate=aggregate, format=",.2f")]
-    chart = base.mark_bar(color="#34b39a", cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-        x=alt.X(f"{category_column}:N", sort="-y", title=category_column), y=y_encoding,
+    y_encoding = alt.Y(field=y_column, type="quantitative", aggregate=aggregate, title=f"{aggregation} {y_column}", axis=axis_style)
+    chart = base.mark_bar(color="#69f0d0", cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+        x=alt.X(f"{category_column}:N", sort="-y", title=category_column, axis=axis_style), y=y_encoding,
         tooltip=tooltip,
     )
     return chart, f"{aggregation} {y_column} by {category_column}{sample_note}"
@@ -304,8 +345,19 @@ def apply_dashboard_config(config: Any, frame: pd.DataFrame) -> None:
             st.session_state[f"dashboard_tile_{index}_count_category"] = tile["category_column"]
 
 
-st.title("📊 AI Data Analyst Bot")
-st.caption("From messy file to a clear, downloadable analysis — with every cleaning choice visible.")
+st.markdown(
+    """
+    <section class="lumen-hero">
+      <div class="lumen-copy">
+        <div class="lumen-kicker"><span></span> LUMEN DATA STUDIO · INTELLIGENCE, IN FOCUS</div>
+        <div class="lumen-title">Your data,<br><em>with a point of view.</em></div>
+        <p class="lumen-description">Turn any file into an exploration-ready workspace. Spot patterns, shape the story, and leave with an analysis you can share.</p>
+      </div>
+      <div class="lumen-signal" aria-hidden="true"><i></i><i></i><i></i></div>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.sidebar:
     st.header("Your dataset")
@@ -388,17 +440,18 @@ clean_profile = profile_data(clean_df)
 actions = recommendations(raw_df)
 report_markdown = build_markdown_report(filename, source_profile, clean_profile, cleaning_log, actions)
 
+st.markdown(f"<div class='section-kicker'>WORKSPACE&nbsp;&nbsp; / &nbsp;&nbsp;{filename}</div>", unsafe_allow_html=True)
 metric_cols = st.columns(4)
-metric_cols[0].metric("Rows", f"{source_profile['rows']:,}", delta=f"{clean_profile['rows'] - source_profile['rows']:+,} after cleaning")
-metric_cols[1].metric("Columns", f"{source_profile['columns']:,}")
-metric_cols[2].metric("Missing cells", f"{source_profile['missing_cells']:,}", delta=f"{clean_profile['missing_cells'] - source_profile['missing_cells']:+,} after cleaning", delta_color="inverse")
-metric_cols[3].metric("Exact duplicates", f"{source_profile['duplicate_rows']:,}")
+metric_cols[0].metric("Rows analyzed", f"{source_profile['rows']:,}", delta=f"{clean_profile['rows'] - source_profile['rows']:+,} after cleaning", border=True)
+metric_cols[1].metric("Fields", f"{source_profile['columns']:,}", border=True)
+metric_cols[2].metric("Missing values", f"{source_profile['missing_cells']:,}", delta=f"{clean_profile['missing_cells'] - source_profile['missing_cells']:+,} after cleaning", delta_color="inverse", border=True)
+metric_cols[3].metric("Duplicate rows", f"{source_profile['duplicate_rows']:,}", border=True)
 
-overview_tab, cleaning_tab, charts_tab, insights_tab, chat_tab = st.tabs(["📋 Dataset", "🧹 Clean", "📊 My Dashboard", "💡 Insights & exports", "💬 Ask the data"])
+overview_tab, cleaning_tab, charts_tab, insights_tab, chat_tab = st.tabs([":material/database: Explore", ":material/cleaning_services: Prepare", ":material/auto_awesome: Dashboard", ":material/insights: Insights", ":material/forum: Ask"])
 
 with overview_tab:
-    st.subheader("Your dataset at a glance")
-    st.caption(f"Source: `{filename}` · Previewing the uploaded file before any changes.")
+    st.subheader("Explore the signal")
+    st.caption(f"A clean look at `{filename}` before any transformations are applied.")
     st.dataframe(raw_df.head(100), width="stretch", hide_index=True)
     left, right = st.columns([1, 1])
     with left:
@@ -421,7 +474,7 @@ with overview_tab:
         st.caption("A quick profile identifies where to look. It does not validate business meaning or source accuracy.")
 
 with cleaning_tab:
-    st.subheader("Review every change before you export")
+    st.subheader("Prepare with confidence")
     before, after = st.columns(2)
     with before:
         st.markdown("#### Before")
@@ -448,18 +501,16 @@ with cleaning_tab:
     st.caption("Spreadsheet formula-like text is prefixed in downloads so spreadsheet applications treat it as text.")
 
 with charts_tab:
-    st.subheader("Build your dashboard")
-    st.caption("Choose multiple charts and a shared filter for any uploaded dataset. Save the layout as JSON to reuse it later; layout files contain settings, not your data.")
-
-    with st.expander("Load a saved dashboard layout"):
-        layout_file = st.file_uploader("Choose a dashboard JSON file", type=["json"], key="dashboard_layout_upload")
-        if st.button("Load dashboard layout", disabled=layout_file is None, key="dashboard_load_file"):
+    st.subheader(st.session_state.get("dashboard_name", "Your data, in focus"))
+    st.caption("An interactive view of the cleaned dataset. Filter once and every visual follows.")
+    with st.popover("Dashboard layouts", icon=":material/folder_open:"):
+        layout_file = st.file_uploader("Dashboard layout JSON", type=["json"], key="dashboard_layout_upload")
+        if st.button("Apply layout", disabled=layout_file is None, key="dashboard_load_file", type="primary"):
             try:
                 apply_dashboard_config(json.loads(layout_file.getvalue().decode("utf-8")), clean_df)
                 st.rerun()
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
                 st.error(f"That dashboard layout could not be loaded: {exc}")
-
     numeric_columns = list(clean_df.select_dtypes(include="number").columns)
     chart_types = ["Count"] + (["Bar", "Line", "Scatter", "Histogram", "Metric"] if numeric_columns else [])
     defaults = default_dashboard(clean_df)
@@ -468,12 +519,12 @@ with charts_tab:
     while len(tiles) < chart_count:
         tiles.append(defaults[len(tiles) % len(defaults)])
     tiles = tiles[:chart_count]
-
     filter_columns = ["All rows", *list(clean_df.columns)]
     current_filter = st.session_state.get("dashboard_filter_column", "All rows")
     if current_filter not in filter_columns:
         current_filter = "All rows"
-    filter_column = st.selectbox("Filter the whole dashboard by", filter_columns, index=filter_columns.index(current_filter), key="dashboard_filter_column")
+    filter_controls = st.columns([1.1, 2.2, 1])
+    filter_column = filter_controls[0].selectbox("Focus field", filter_columns, index=filter_columns.index(current_filter), key="dashboard_filter_column")
     filter_values = []
     filtered_df = clean_df
     if filter_column != "All rows":
@@ -481,87 +532,102 @@ with charts_tab:
         has_many_values = len(options) > 150
         if has_many_values:
             options = options[:150]
-            st.caption("This field has many unique values; the filter shows the first 150 in sorted order. Leave the selection empty to include all values.")
+            filter_controls[1].caption("First 150 values shown. Leave empty to include everything.")
         filter_key = f"dashboard_filter_values_{filter_column}"
-        selected = st.multiselect("Keep values (leave empty for all)", options=options, default=[value for value in st.session_state.get(filter_key, []) if value in options], key=filter_key)
+        selected = filter_controls[1].multiselect("Values", options=options, default=[value for value in st.session_state.get(filter_key, []) if value in options], key=filter_key, placeholder="All values")
         filter_values = selected
         if selected:
             filtered_df = clean_df[clean_df[filter_column].isin(selected)]
-    st.caption(f"Showing {len(filtered_df):,} of {len(clean_df):,} cleaned rows")
+    filter_controls[2].metric("Rows in view", f"{len(filtered_df):,}")
 
-    draft_tiles = []
-    for index, tile in enumerate(tiles):
-        safe_type = tile.get("chart_type") if tile.get("chart_type") in chart_types else chart_types[0]
-        title_key = f"dashboard_tile_{index}_title"
-        type_key = f"dashboard_tile_{index}_type"
-        with st.container(border=True):
-            title_cols = st.columns([2, 1])
-            title = title_cols[0].text_input("Chart title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)
-            chart_type = title_cols[1].selectbox("Chart type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
-            x_column = clean_df.columns[0]
-            category_column = None
-            y_column = None
-            aggregation = "Count"
-            if chart_type == "Metric":
-                cols = st.columns(2)
-                prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[0]
-                y_column = cols[0].selectbox("Measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_metric")
-                aggregations = ["Sum", "Mean", "Median", "Count"]
-                prior_agg = tile.get("aggregation") if tile.get("aggregation") in aggregations else "Sum"
-                aggregation = cols[1].selectbox("Calculation", aggregations, index=aggregations.index(prior_agg), key=f"dashboard_tile_{index}_metric_agg")
-            elif chart_type == "Histogram":
-                prior_x = tile.get("x_column") if tile.get("x_column") in numeric_columns else numeric_columns[0]
-                x_column = st.selectbox("Measure distribution", numeric_columns, index=numeric_columns.index(prior_x), key=f"dashboard_tile_{index}_histogram_x")
-            elif chart_type == "Scatter":
-                cols = st.columns(2)
-                prior_x = tile.get("x_column") if tile.get("x_column") in numeric_columns else numeric_columns[0]
-                prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[min(1, len(numeric_columns)-1)]
-                x_column = cols[0].selectbox("Horizontal measure", numeric_columns, index=numeric_columns.index(prior_x), key=f"dashboard_tile_{index}_scatter_x")
-                y_column = cols[1].selectbox("Vertical measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_scatter_y")
-            elif chart_type == "Line":
-                cols = st.columns(3)
-                prior_x = tile.get("x_column") if tile.get("x_column") in clean_df.columns else clean_df.columns[0]
-                prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[0]
-                x_column = cols[0].selectbox("X axis", list(clean_df.columns), index=list(clean_df.columns).index(prior_x), key=f"dashboard_tile_{index}_line_x")
-                y_column = cols[1].selectbox("Measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_line_y")
-                aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_line_agg")
-            elif chart_type == "Bar":
-                cols = st.columns(3)
-                category_options = [column for column in clean_df.columns if column not in numeric_columns] or list(clean_df.columns)
-                prior_category = tile.get("category_column") if tile.get("category_column") in category_options else category_options[0]
-                category_column = cols[0].selectbox("Group by", category_options, index=category_options.index(prior_category), key=f"dashboard_tile_{index}_bar_category")
-                y_column = cols[1].selectbox("Measure", numeric_columns, key=f"dashboard_tile_{index}_bar_measure")
-                aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_bar_agg")
-            else:
-                category_column = st.selectbox("Count rows by", list(clean_df.columns), index=list(clean_df.columns).index(tile.get("category_column")) if tile.get("category_column") in clean_df.columns else 0, key=f"dashboard_tile_{index}_count_category")
-            draft_tiles.append({"title": title.strip() or f"Chart {index + 1}", "chart_type": chart_type, "x_column": x_column, "category_column": category_column, "y_column": y_column, "aggregation": aggregation})
+    with st.expander(":material/tune: Customize visuals", expanded=False):
+        st.caption("Choose the story each visual tells. Your changes update the dashboard immediately.")
+        draft_tiles = []
+        for index, tile in enumerate(tiles):
+            safe_type = tile.get("chart_type") if tile.get("chart_type") in chart_types else chart_types[0]
+            title_key = f"dashboard_tile_{index}_title"
+            type_key = f"dashboard_tile_{index}_type"
+            with st.container(border=True):
+                st.markdown(f"**Visual {index + 1}**")
+                title_cols = st.columns([2, 1])
+                title = title_cols[0].text_input("Title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)
+                chart_type = title_cols[1].selectbox("Visual type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
+                x_column = clean_df.columns[0]
+                category_column = None
+                y_column = None
+                aggregation = "Count"
+                if chart_type == "Metric":
+                    cols = st.columns(2)
+                    prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[0]
+                    y_column = cols[0].selectbox("Measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_metric")
+                    aggregations = ["Sum", "Mean", "Median", "Count"]
+                    prior_agg = tile.get("aggregation") if tile.get("aggregation") in aggregations else "Sum"
+                    aggregation = cols[1].selectbox("Calculation", aggregations, index=aggregations.index(prior_agg), key=f"dashboard_tile_{index}_metric_agg")
+                elif chart_type == "Histogram":
+                    prior_x = tile.get("x_column") if tile.get("x_column") in numeric_columns else numeric_columns[0]
+                    x_column = st.selectbox("Measure distribution", numeric_columns, index=numeric_columns.index(prior_x), key=f"dashboard_tile_{index}_histogram_x")
+                elif chart_type == "Scatter":
+                    cols = st.columns(2)
+                    prior_x = tile.get("x_column") if tile.get("x_column") in numeric_columns else numeric_columns[0]
+                    prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[min(1, len(numeric_columns)-1)]
+                    x_column = cols[0].selectbox("Horizontal measure", numeric_columns, index=numeric_columns.index(prior_x), key=f"dashboard_tile_{index}_scatter_x")
+                    y_column = cols[1].selectbox("Vertical measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_scatter_y")
+                elif chart_type == "Line":
+                    cols = st.columns(3)
+                    prior_x = tile.get("x_column") if tile.get("x_column") in clean_df.columns else clean_df.columns[0]
+                    prior_y = tile.get("y_column") if tile.get("y_column") in numeric_columns else numeric_columns[0]
+                    x_column = cols[0].selectbox("X axis", list(clean_df.columns), index=list(clean_df.columns).index(prior_x), key=f"dashboard_tile_{index}_line_x")
+                    y_column = cols[1].selectbox("Measure", numeric_columns, index=numeric_columns.index(prior_y), key=f"dashboard_tile_{index}_line_y")
+                    aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_line_agg")
+                elif chart_type == "Bar":
+                    cols = st.columns(3)
+                    category_options = [column for column in clean_df.columns if column not in numeric_columns] or list(clean_df.columns)
+                    prior_category = tile.get("category_column") if tile.get("category_column") in category_options else category_options[0]
+                    category_column = cols[0].selectbox("Group by", category_options, index=category_options.index(prior_category), key=f"dashboard_tile_{index}_bar_category")
+                    y_column = cols[1].selectbox("Measure", numeric_columns, key=f"dashboard_tile_{index}_bar_measure")
+                    aggregation = cols[2].selectbox("Calculation", ["Mean", "Sum", "Count"], key=f"dashboard_tile_{index}_bar_agg")
+                else:
+                    category_column = st.selectbox("Count rows by", list(clean_df.columns), index=list(clean_df.columns).index(tile.get("category_column")) if tile.get("category_column") in clean_df.columns else 0, key=f"dashboard_tile_{index}_count_category")
+                draft_tiles.append({"title": title.strip() or f"Chart {index + 1}", "chart_type": chart_type, "x_column": x_column, "category_column": category_column, "y_column": y_column, "aggregation": aggregation})
+        st.session_state.dashboard_tiles = draft_tiles
 
-    st.session_state.dashboard_tiles = draft_tiles
-    st.markdown("#### Dashboard preview")
+    draft_tiles = st.session_state.get("dashboard_tiles", tiles)
+    st.markdown("<div class='section-kicker'>LIVE DASHBOARD &nbsp; / &nbsp; FILTERED VIEW</div>", unsafe_allow_html=True)
     if filtered_df.empty:
         st.info("No rows match the selected filter. Choose more values to see the dashboard.")
     else:
+        if numeric_columns:
+            focus_measure = numeric_columns[0]
+            value = filtered_df[focus_measure].sum()
+            average = filtered_df[focus_measure].mean()
+            median = filtered_df[focus_measure].median()
+            insight_cols = st.columns(3)
+            insight_cols[0].metric(f"Total · {focus_measure}", f"{value:,.2f}" if pd.notna(value) else "—", border=True)
+            insight_cols[1].metric(f"Average · {focus_measure}", f"{average:,.2f}" if pd.notna(average) else "—", border=True)
+            insight_cols[2].metric(f"Median · {focus_measure}", f"{median:,.2f}" if pd.notna(median) else "—", border=True)
         chart_columns = st.columns(2)
         for index, tile in enumerate(draft_tiles):
             with chart_columns[index % 2]:
-                st.markdown(f"**{tile['title']}**")
-                try:
-                    if tile["chart_type"] == "Metric":
-                        series = filtered_df[tile["y_column"]]
-                        value = {"Sum": series.sum, "Mean": series.mean, "Median": series.median, "Count": series.count}[tile["aggregation"]]()
-                        st.metric(label=f"{tile['aggregation']} · {tile['y_column']}", value=f"{value:,.2f}" if pd.notna(value) else "—")
-                    else:
-                        chart, summary = make_chart(filtered_df, tile["chart_type"], tile["x_column"], tile["y_column"], tile["category_column"], tile["aggregation"])
-                        st.altair_chart(chart, width="stretch")
-                        st.caption(summary)
-                except (ValueError, TypeError, KeyError) as exc:
-                    st.warning(f"Adjust this chart's settings: {exc}")
+                with st.container(border=True):
+                    st.markdown(f"<div class='chart-heading'>{tile['title']}</div><div class='section-kicker'>{tile['chart_type']} &nbsp; · &nbsp; VISUAL {index + 1:02d}</div>", unsafe_allow_html=True)
+                    try:
+                        if tile["chart_type"] == "Metric":
+                            series = filtered_df[tile["y_column"]]
+                            value = {"Sum": series.sum, "Mean": series.mean, "Median": series.median, "Count": series.count}[tile["aggregation"]]()
+                            st.metric(label=f"{tile['aggregation']} · {tile['y_column']}", value=f"{value:,.2f}" if pd.notna(value) else "—", border=True)
+                        else:
+                            chart, summary = make_chart(filtered_df, tile["chart_type"], tile["x_column"], tile["y_column"], tile["category_column"], tile["aggregation"])
+                            chart = chart.configure(background="transparent", view=alt.ViewConfig(strokeOpacity=0), padding={"left": 8, "right": 8, "top": 14, "bottom": 6})
+                            st.altair_chart(chart, width="stretch", theme="streamlit")
+                            st.caption(summary)
+                    except (ValueError, TypeError, KeyError) as exc:
+                        st.warning(f"Adjust this visual's settings: {exc}")
 
     dashboard_name = st.text_input("Dashboard name", value=st.session_state.get("dashboard_name", "My dashboard"), max_chars=80, key="dashboard_name")
     layout = {"version": 1, "name": dashboard_name.strip() or "My dashboard", "charts": draft_tiles, "filter_column": filter_column, "filter_values": filter_values}
-    controls = st.columns(2)
-    controls[0].download_button("Save dashboard layout (JSON)", json.dumps(layout, indent=2, default=str), file_name=f"{Path(dashboard_name.strip() or 'dashboard').stem}_dashboard.json", mime="application/json", key="dashboard_download_layout")
-    st.caption("The uploaded dataset stays in this app session. Save your layout JSON separately; it contains chart and filter settings, never the uploaded data.")
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.download_button("Export dashboard layout", json.dumps(layout, indent=2, default=str), file_name=f"{Path(dashboard_name.strip() or 'dashboard').stem}_dashboard.json", mime="application/json", key="dashboard_download_layout", icon=":material/download:")
+    st.caption("Layout exports hold chart settings only; uploaded data stays in this session.")
 
 with insights_tab:
     st.subheader("Decision-ready summary")
