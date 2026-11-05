@@ -197,7 +197,7 @@ overview_tab, cleaning_tab, charts_tab, insights_tab, chat_tab = st.tabs(["📋 
 with overview_tab:
     st.subheader("Your dataset at a glance")
     st.caption(f"Source: `{filename}` · Previewing the uploaded file before any changes.")
-    st.dataframe(raw_df.head(100), use_container_width=True, hide_index=True)
+    st.dataframe(raw_df.head(100), width="stretch", hide_index=True)
     left, right = st.columns([1, 1])
     with left:
         st.markdown("#### Column profile")
@@ -205,7 +205,7 @@ with overview_tab:
         for column in raw_df.columns:
             values = raw_df[column]
             profile_rows.append({"Column": str(column), "Type": str(values.dtype), "Missing": int(values.isna().sum()), "Distinct": int(values.nunique(dropna=True))})
-        st.dataframe(pd.DataFrame(profile_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(profile_rows), width="stretch", hide_index=True)
     with right:
         st.markdown("#### Data quality flags")
         if source_profile["missing_by_column"]:
@@ -224,14 +224,14 @@ with cleaning_tab:
     with before:
         st.markdown("#### Before")
         st.caption(f"{len(raw_df):,} rows · {int(raw_df.isna().sum().sum()):,} missing cells")
-        st.dataframe(raw_df.head(60), use_container_width=True, hide_index=True)
+        st.dataframe(raw_df.head(60), width="stretch", hide_index=True)
     with after:
         st.markdown("#### After")
         st.caption(f"{len(clean_df):,} rows · {int(clean_df.isna().sum().sum()):,} missing cells")
-        st.dataframe(clean_df.head(60), use_container_width=True, hide_index=True)
+        st.dataframe(clean_df.head(60), width="stretch", hide_index=True)
     st.markdown("#### Change log")
     if cleaning_log:
-        st.dataframe(pd.DataFrame(cleaning_log), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(cleaning_log), width="stretch", hide_index=True)
     else:
         st.success("No rows or values changed with the selected options.")
     st.caption("The original uploaded file remains unchanged. Change the cleaning choices in the sidebar to compare outcomes.")
@@ -258,21 +258,21 @@ with charts_tab:
         elif chart_type == "Histogram":
             metric = control_cols[1].selectbox("Measure to inspect", numeric_columns)
             chart, summary = make_chart(clean_df, chart_type, metric, None, None, "Count")
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
             st.caption(summary)
         elif chart_type == "Scatter":
             axis_cols = st.columns(2)
             scatter_x = axis_cols[0].selectbox("Horizontal measure", numeric_columns, key="scatter_x")
             scatter_y = axis_cols[1].selectbox("Vertical measure", numeric_columns, index=min(1, len(numeric_columns)-1), key="scatter_y")
             chart, summary = make_chart(clean_df, chart_type, scatter_x, scatter_y, None, "Mean")
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
             st.caption(summary)
         elif chart_type == "Line":
             x_col = control_cols[1].selectbox("X axis", list(clean_df.columns))
             y_col = control_cols[2].selectbox("Measure", numeric_columns)
             aggregation = control_cols[3].selectbox("Aggregation", ["Mean", "Sum", "Count"])
             chart, summary = make_chart(clean_df, chart_type, x_col, y_col, None, aggregation)
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
             st.caption(summary)
         else:
             categorical_columns = [column for column in clean_df.columns if column not in numeric_columns]
@@ -283,7 +283,7 @@ with charts_tab:
                 y_col = control_cols[2].selectbox("Numeric measure", numeric_columns)
                 aggregation = control_cols[3].selectbox("Aggregation", ["Mean", "Sum", "Count"])
                 chart, summary = make_chart(clean_df, chart_type, category, y_col, category, aggregation)
-                st.altair_chart(chart, use_container_width=True)
+                st.altair_chart(chart, width="stretch")
                 st.caption(summary)
     st.caption("Charts use the cleaned data and selected aggregations. Investigate surprising patterns before drawing conclusions.")
 
@@ -337,7 +337,7 @@ with chat_tab:
                     compact_data = json.loads(clean_df.head(8).to_json(orient="records", date_format="iso"))
                     context = json.dumps({"columns": list(map(str, clean_df.columns)), "shape": clean_df.shape, "sample_rows": compact_data}, default=str)
                     with st.spinner("Asking the configured OpenAI model about the sample you approved…"):
-                    response = OpenAI(api_key=openai_api_key()).responses.create(
+                        response = OpenAI(api_key=openai_api_key()).responses.create(
                             model=model,
                             store=False,
                             instructions="Answer questions about the supplied dataset sample and schema. State when the sample is insufficient. Never infer causation from correlation. Do not claim to have analyzed rows outside the provided sample unless the provided context explicitly contains aggregate results.",
@@ -353,3 +353,4 @@ with chat_tab:
 
 st.divider()
 st.caption("The original upload is never overwritten. Review cleaning logs and validate domain-specific recommendations before acting.")
+
