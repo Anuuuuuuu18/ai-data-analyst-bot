@@ -83,7 +83,7 @@ def clean_data(
             fill_value = cleaned[column].median()
         else:
             fill_value = 0
-        cleaned[column] = cleaned[column].fillna(fill_value)
+        cleaned[column] = cleaned[column].astype("float64").fillna(float(fill_value))
         actions.append({"action": f"Fill with {numeric_strategy.lower()}", "column": str(column), "records_changed": missing_count})
 
     for column in cleaned.select_dtypes(include=["object", "string", "category"]).columns:
@@ -202,21 +202,26 @@ def python_starter(filename: str, numeric_strategy: str, text_strategy: str) -> 
     safe_filename = repr(filename)
     reader = "pd.read_excel" if filename.lower().endswith((".xlsx", ".xls")) else "pd.read_csv"
     lines = [
-        "import pandas as pd", "", f"df = {reader}({safe_filename})", "df = df.drop_duplicates()",
+        "import pandas as pd", "", f"df = {reader}({safe_filename})",
         "for column in df.select_dtypes(include=['object', 'string']).columns:",
         "    df[column] = df[column].map(lambda value: value.strip() if isinstance(value, str) else value)",
-        "for column in df.select_dtypes(include='number').columns:",
+        "    df[column] = df[column].replace(r'^\\s*$', pd.NA, regex=True)",
+        "df = df.drop_duplicates()",
     ]
-    if numeric_strategy == "Zero":
-        lines.append("    df[column] = df[column].fillna(0)")
+    if numeric_strategy == "Drop rows" or text_strategy == "Drop rows":
+        lines.append("df = df.dropna()")
     else:
-        method = "mean" if numeric_strategy == "Mean" else "median"
-        lines.extend([f"    fill_value = df[column].{method}() if df[column].notna().any() else 0", "    df[column] = df[column].fillna(fill_value)"])
-    lines.append("for column in df.select_dtypes(exclude='number').columns:")
-    if text_strategy == "Most common":
-        lines.extend(["    modes = df[column].mode(dropna=True)", "    fill_value = modes.iloc[0] if not modes.empty else 'Not provided'", "    df[column] = df[column].fillna(fill_value)"])
-    else:
-        lines.append("    df[column] = df[column].fillna('Not provided')")
+        lines.append("for column in df.select_dtypes(include='number').columns:")
+        if numeric_strategy == "Zero":
+            lines.append("    df[column] = df[column].fillna(0)")
+        else:
+            method = "mean" if numeric_strategy == "Mean" else "median"
+            lines.extend([f"    fill_value = df[column].{method}() if df[column].notna().any() else 0", "    df[column] = df[column].fillna(fill_value)"])
+        lines.append("for column in df.select_dtypes(exclude='number').columns:")
+        if text_strategy == "Most common":
+            lines.extend(["    modes = df[column].mode(dropna=True)", "    fill_value = modes.iloc[0] if not modes.empty else 'Not provided'", "    df[column] = df[column].fillna(fill_value)"])
+        else:
+            lines.append("    df[column] = df[column].fillna('Not provided')")
     lines.extend(["", "print(df.shape)", "print(df.describe(include='all').transpose())", "print(df.select_dtypes(include='number').corr())", "df.to_csv('cleaned_output.csv', index=False)", ""])
     return "\n".join(lines)
 
@@ -224,3 +229,4 @@ def python_starter(filename: str, numeric_strategy: str, text_strategy: str) -> 
 def json_safe(value: Any) -> Any:
     """Convert common numpy/pandas scalar values for JSON report downloads."""
     return json.loads(json.dumps(value, default=lambda item: item.item() if hasattr(item, "item") else str(item)))
+
