@@ -15,13 +15,14 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-On Windows PowerShell, activate with `\.venv\Scripts\Activate.ps1`; on macOS/Linux, use `source .venv/bin/activate`. The app opens with a built-in messy sales dataset so the first run produces visible results without an API key or file upload. Use **Upload my file** to work with your own `.csv`, `.tsv`, `.json`, `.xlsx`, or `.xls` file.
+On Windows PowerShell, activate with `\.venv\Scripts\Activate.ps1`; on macOS/Linux, use `source .venv/bin/activate`. The app opens with a built-in messy sales dataset so the first run produces visible results without an API key or file upload. Use **Upload my file** for CSV/TSV/text, JSON/JSONL, Parquet, PDF, or Excel/OpenDocument spreadsheets (`.xlsx`, `.xlsm`, `.xls`, `.xlsb`, `.ods`, `.xltx`, `.xltm`).
 
 ## What the app produces
 
 - A shape, column, missing-value, and duplicate profile.
 - Side-by-side before/after previews and an itemized cleaning log.
 - Downloadable cleaned CSV and Excel workbook.
+- PDF table/text extraction with English OCR for scanned pages, plus common Excel and OpenDocument workbook formats.
 - A configurable dashboard with 1–6 count, bar, line, scatter, histogram, and KPI tiles, plus a shared filter.
 - Downloadable dashboard layouts in JSON that can be loaded again with compatible or different datasets.
 - A Markdown and JSON analysis report with cautious next-step recommendations.
@@ -44,11 +45,12 @@ sample_data/sales_messy.csv    Fictional demo data with intentional quality issu
 docs/                          Method, privacy, and deployment guidance
 .streamlit/config.toml         App theme and upload limits
 requirements.txt               Pinned runtime dependencies
+packages.txt                   Tesseract OCR runtime for scanned PDFs
 ```
 
 ## Data handling and limits
 
-CSV, TSV, JSON, and Excel uploads are read in memory for the current Streamlit session and are not written into the repository. Dashboard JSON exports contain chart and filter settings, never uploaded rows. Cloud answers are off by default. If enabled and confirmed, a small sample and the question are sent to the configured OpenAI API. The app does not validate source accuracy, understand an organization's business rules, or prove causation. Treat correlations, unusual-value flags, and generated recommendations as leads for human review. See [data and privacy notes](docs/DATA_AND_PRIVACY.md).
+Supported uploads are read in memory for the current Streamlit session and are not written into the repository. PDFs with selectable text or tables are parsed directly; scanned/image-only PDFs use English OCR. Dashboard JSON exports contain chart and filter settings, never uploaded rows. Cloud answers are off by default. If enabled and confirmed, a small sample and the question are sent to the configured OpenAI API. The app does not validate source accuracy, understand an organization's business rules, or prove causation. Treat correlations, unusual-value flags, and generated recommendations as leads for human review. See [data and privacy notes](docs/DATA_AND_PRIVACY.md).
 
 ## License
 
