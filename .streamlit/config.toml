@@ -1,10 +1,17 @@
 [theme]
-base = "light"
-primaryColor = "#16866f"
-backgroundColor = "#f4f8f7"
-secondaryBackgroundColor = "#ffffff"
-textColor = "#172521"
-font = "sans serif"
+base = "dark"
+primaryColor = "#69f0d0"
+backgroundColor = "#080d16"
+secondaryBackgroundColor = "#111a28"
+textColor = "#edf3fb"
+linkColor = "#83e9d5"
+borderColor = "#263547"
+codeBackgroundColor = "#111a28"
+font = "sans-serif"
+
+[theme.sidebar]
+backgroundColor = "#0d1420"
 
 [server]
-maxUploadSize = 100
+headless = true
+
