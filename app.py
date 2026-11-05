@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import io
 import json
 import os
@@ -11,14 +12,12 @@ from pathlib import Path
 from typing import Any
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 from analyst import answer_question, clean_data, profile_data, python_starter, recommendations, spreadsheet_safe_copy, sql_starter
 
-
-APP_DIR = Path(__file__).parent
-DEMO_FILE = APP_DIR / "sample_data" / "sales_messy.csv"
 
 st.set_page_config(page_title="Lumen | AI Data Analyst", page_icon=":material/auto_awesome:", layout="wide", initial_sidebar_state="collapsed")
 
@@ -250,6 +249,135 @@ def build_markdown_report(
     return "\n".join(lines)
 
 
+def business_column_options(frame: pd.DataFrame) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Find likely sales-analysis fields, including numbers stored as text."""
+    dates = date_columns(frame)
+    measures = []
+    for column in frame.columns:
+        parsed = pd.to_numeric(frame[column].astype(str).str.replace(r"[$,₹€£%]", "", regex=True), errors="coerce")
+        if pd.api.types.is_numeric_dtype(frame[column]) or parsed.notna().mean() >= 0.8:
+            measures.append(column)
+    categories = [column for column in frame.columns if column not in dates and column not in measures]
+    return dates, measures, categories, list(frame.columns)
+
+
+def suggested_column(columns: list[str], words: tuple[str, ...]) -> str | None:
+    return next((column for word in words for column in columns if word in str(column).casefold()), None)
+
+
+def analyze_sales(
+    frame: pd.DataFrame,
+    date_column: str,
+    sales_column: str,
+    product_column: str | None = None,
+    location_column: str | None = None,
+) -> dict[str, Any]:
+    """Build transparent monthly comparisons, segment attribution, and a simple forecast."""
+    work = pd.DataFrame({
+        "_date": pd.to_datetime(frame[date_column], errors="coerce", format="mixed"),
+        "_sales": pd.to_numeric(frame[sales_column].astype(str).str.replace(r"[$,₹€£]", "", regex=True), errors="coerce"),
+    }, index=frame.index)
+    if product_column:
+        work["_product"] = frame[product_column].astype("string").fillna("(Missing)")
+    if location_column:
+        work["_location"] = frame[location_column].astype("string").fillna("(Missing)")
+    valid = work.dropna(subset=["_date", "_sales"]).copy()
+    valid["_month"] = valid["_date"].dt.to_period("M")
+    if valid.empty:
+        raise ValueError("No rows have both a readable date and a numeric sales value. Check the selected fields and date format.")
+    monthly = valid.groupby("_month", as_index=False)["_sales"].sum()
+    complete_months = pd.period_range(monthly["_month"].min(), monthly["_month"].max(), freq="M")
+    monthly = monthly.set_index("_month").reindex(complete_months, fill_value=0).rename_axis("_month").reset_index()
+    monthly["Month"] = monthly["_month"].dt.to_timestamp()
+    monthly = monthly.rename(columns={"_sales": "Sales"})
+    previous = float(monthly.iloc[-2]["Sales"]) if len(monthly) >= 2 else None
+    current = float(monthly.iloc[-1]["Sales"])
+    change_pct = ((current - previous) / abs(previous) * 100) if previous not in (None, 0) else None
+    forecast = None
+    forecast_low = forecast_high = None
+    history = monthly.tail(6)
+    if len(history) >= 3:
+        x_values = np.arange(len(history), dtype=float)
+        slope, intercept = np.polyfit(x_values, history["Sales"].to_numpy(dtype=float), 1)
+        forecast = max(0.0, float(slope * len(history) + intercept))
+        residuals = history["Sales"].to_numpy(dtype=float) - (slope * x_values + intercept)
+        spread = float(np.std(residuals, ddof=1)) if len(residuals) > 2 else 0.0
+        forecast_low = max(0.0, forecast - 1.96 * spread)
+        forecast_high = forecast + 1.96 * spread
+    forecast_month = monthly.iloc[-1]["_month"] + 1
+
+    def segment_declines(field: str | None, internal_column: str, output_name: str) -> pd.DataFrame:
+        if not field or len(monthly) < 2:
+            return pd.DataFrame()
+        periods = monthly["_month"].iloc[-2:].tolist()
+        subset = valid[valid["_month"].isin(periods)]
+        grouped = subset.groupby([internal_column, "_month"], dropna=False)["_sales"].sum().unstack(fill_value=0)
+        grouped = grouped.reindex(columns=periods, fill_value=0)
+        grouped.columns = ["Previous sales", "Latest sales"]
+        grouped["Decline"] = grouped["Previous sales"] - grouped["Latest sales"]
+        total_decline = previous - current if previous is not None else 0
+        grouped["Contribution to net decline %"] = np.where(total_decline > 0, grouped["Decline"] / total_decline * 100, np.nan)
+        grouped["Change %"] = np.where(grouped["Previous sales"] != 0, (grouped["Latest sales"] - grouped["Previous sales"]) / grouped["Previous sales"].abs() * 100, np.nan)
+        grouped.index.name = output_name
+        return grouped.sort_values("Decline", ascending=False).head(12).reset_index()
+
+    product_field = "_product" if product_column else None
+    location_field = "_location" if location_column else None
+    products = segment_declines(product_column, "_product", product_column or "Product")
+    locations = segment_declines(location_column, "_location", location_column or "Location")
+    product_locations = pd.DataFrame()
+    if product_field and location_field and len(monthly) >= 2:
+        periods = monthly["_month"].iloc[-2:].tolist()
+        grouped = valid[valid["_month"].isin(periods)].groupby(["_product", "_location", "_month"])["_sales"].sum().unstack(fill_value=0)
+        grouped = grouped.reindex(columns=periods, fill_value=0)
+        grouped.columns = ["Previous sales", "Latest sales"]
+        grouped["Decline"] = grouped["Previous sales"] - grouped["Latest sales"]
+        grouped.index.names = [product_column, location_column]
+        product_locations = grouped.sort_values("Decline", ascending=False).head(12).reset_index()
+    return {
+        "monthly": monthly, "previous": previous, "current": current, "change_pct": change_pct,
+        "products": products, "locations": locations, "product_locations": product_locations,
+        "forecast": forecast, "forecast_low": forecast_low, "forecast_high": forecast_high,
+        "forecast_month": forecast_month, "valid_rows": len(valid), "invalid_rows": len(frame) - len(valid),
+        "first_date": valid["_date"].min(), "last_date": valid["_date"].max(),
+        "partial_month_note": "The latest month may be incomplete because it is the latest month present in the upload.",
+    }
+
+
+def sales_management_report(filename: str, date_column: str, sales_column: str, analysis: dict[str, Any]) -> str:
+    """Create the business-facing monthly sales report from computed results."""
+    monthly = analysis["monthly"]
+    period_label = monthly.iloc[-1]["_month"].strftime("%B %Y")
+    prior_label = monthly.iloc[-2]["_month"].strftime("%B %Y") if len(monthly) > 1 else "the prior month"
+    change = analysis["change_pct"]
+    if analysis["previous"] is None:
+        outcome = "There is only one month of usable sales data, so a month-over-month comparison is not available."
+    elif change is None:
+        outcome = f"{period_label} sales were {analysis['current']:,.2f}; {prior_label} was zero, so a percentage change cannot be calculated."
+    else:
+        outcome = f"{period_label} sales were {analysis['current']:,.2f}, a {abs(change):.1f}% {'decline' if change < 0 else 'increase'} from {prior_label} ({analysis['previous']:,.2f})."
+    lines = [f"# Monthly sales management report — {filename}", "", "## Executive readout", "", outcome, "", f"- Sales field: `{sales_column}`", f"- Date field: `{date_column}`", f"- Coverage: {analysis['first_date']:%d %b %Y} to {analysis['last_date']:%d %b %Y}", f"- Valid sales rows: {analysis['valid_rows']:,}; excluded rows with invalid date/value: {analysis['invalid_rows']:,}", f"- Latest-month caution: {analysis['partial_month_note']}", "", "## Drivers to investigate", ""]
+    for label, key in (("Products", "products"), ("Locations", "locations"), ("Product and location combinations", "product_locations")):
+        table = analysis[key]
+        lines.append(f"### {label}")
+        if table.empty:
+            lines.append("No breakdown is available for this field.")
+        else:
+            dimension_columns = [column for column in table.columns if column not in {"Previous sales", "Latest sales", "Decline", "Contribution to net decline %", "Change %"}]
+            for _, row in table.head(5).iterrows():
+                dimensions = " · ".join(f"{column}: {row[column]}" for column in dimension_columns)
+                lines.append(f"- {dimensions}: sales changed from {row['Previous sales']:,.2f} to {row['Latest sales']:,.2f} (net decline contribution {row.get('Contribution to net decline %', float('nan')):.1f}%).")
+        lines.append("")
+    lines.extend(["## Next-month forecast", ""])
+    if analysis["forecast"] is None:
+        lines.append("Not available: at least three monthly observations are needed for the directional trend estimate.")
+    else:
+        lines.append(f"Estimated sales for {analysis['forecast_month'].strftime('%B %Y')}: {analysis['forecast']:,.2f} (indicative range {analysis['forecast_low']:,.2f}–{analysis['forecast_high']:,.2f}).")
+        lines.append("Method: ordinary least-squares linear trend over up to the latest six monthly totals; the range uses residual spread and is not a formal confidence interval.")
+    lines.extend(["", "## Recommended actions", "", "1. Validate the largest product and location contributors with inventory, pricing, promotion, returns, and order-volume records before assigning a cause.", "2. Ask the affected location and product owners to review stock-outs, availability, and campaign changes for the comparison period.", "3. Check whether the latest month is complete; compare against the same point in the prior month if this upload is month-to-date.", "4. Set a weekly recovery target for the highest-contributing segments and monitor sales, order count, and margin together.", "", "## Method and limits", "", "Monthly totals are calculated from rows with valid selected dates and numeric sales values. Missing months between the first and latest observed month are treated as zero. Segment contribution is arithmetic attribution of the net month-to-month sales change, not proof of cause. The trend forecast is directional and assumes recent linear behavior continues.", ""])
+    return "\n".join(lines)
+
+
 def date_columns(frame: pd.DataFrame) -> list[str]:
     """Find native or confidently parseable date columns for sensible time-series defaults."""
     found = []
@@ -383,9 +511,9 @@ st.markdown(
     """
     <section class="lumen-hero">
       <div class="lumen-copy">
-        <div class="lumen-kicker"><span></span> LUMEN DATA STUDIO · INTELLIGENCE, IN FOCUS</div>
-        <div class="lumen-title">Your data,<br><em>with a point of view.</em></div>
-        <p class="lumen-description">Turn any file into an exploration-ready workspace. Spot patterns, shape the story, and leave with an analysis you can share.</p>
+        <div class="lumen-kicker"><span></span> LUMEN SALES INTELLIGENCE · MANAGEMENT BRIEFING</div>
+        <div class="lumen-title">Find the drop.<br><em>See what moves next.</em></div>
+        <p class="lumen-description">Upload your sales file to reveal monthly movement, pinpoint product and location contributors, estimate next month, and create a management-ready report.</p>
       </div>
       <div class="lumen-signal" aria-hidden="true"><i></i><i></i><i></i></div>
     </section>
@@ -394,20 +522,10 @@ st.markdown(
 )
 
 with st.sidebar:
-    st.header("Your dataset")
-    source = st.radio("Start with", ["Try the demo", "Upload my file"], horizontal=False)
-    uploaded = None
+    st.header("Analysis setup")
+    st.caption("Choose the fields that define a sales trend. We’ll suggest matches from your upload.")
     sheet_name = ""
-    if source == "Upload my file":
-        supported_types = ["csv", "tsv", "txt", "json", "jsonl", "parquet", "pdf", "xlsx", "xlsm", "xls", "xlsb", "ods", "xltx", "xltm"]
-        uploaded = st.file_uploader("Choose a PDF, spreadsheet, or data file", type=supported_types, help="Supports CSV/TSV/text, JSON/JSONL, Parquet, PDF, and Excel or OpenDocument spreadsheets. Files are processed in this session and are not saved to this repository.")
-        filename_lower = uploaded.name.lower() if uploaded is not None else ""
-        if uploaded is not None and filename_lower.endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
-            try:
-                workbook = pd.ExcelFile(io.BytesIO(uploaded.getvalue()))
-                sheet_name = st.selectbox("Workbook sheet", workbook.sheet_names)
-            except Exception as exc:
-                st.error(f"Could not read workbook sheets: {exc}")
+    supported_types = ["csv", "tsv", "txt", "json", "jsonl", "parquet", "pdf", "xlsx", "xlsm", "xls", "xlsb", "ods", "xltx", "xltm"]
     st.divider()
     st.subheader("Cleaning choices")
     numeric_strategy = st.selectbox("Fill missing numbers with", ["Median", "Mean", "Zero", "Drop rows"])
@@ -423,27 +541,35 @@ with st.sidebar:
             cloud_consent = st.checkbox("I approve sending this limited sample and my questions to the configured API.", value=False)
             st.caption("Configure OPENAI_API_KEY as an environment variable or Streamlit secret. The API is optional; offline analysis still works.")
 
+st.markdown("#### Start with your sales data")
+st.caption("Upload a business file to generate the analysis. Data is processed for this session and is not saved by the app.")
+uploaded = st.file_uploader("Choose a PDF, spreadsheet, or data file", type=supported_types, help="Supports CSV/TSV/text, JSON/JSONL, Parquet, PDF, and Excel or OpenDocument spreadsheets. Files are processed in this session and are not saved to this repository.", key="business_data_upload")
+if uploaded is not None and uploaded.name.lower().endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
+    try:
+        workbook = pd.ExcelFile(io.BytesIO(uploaded.getvalue()))
+        with st.sidebar:
+            sheet_name = st.selectbox("Workbook sheet", workbook.sheet_names)
+    except Exception as exc:
+        st.error(f"Could not read workbook sheets: {exc}")
+
+if uploaded is None:
+    st.info("Upload your sales data to see the month-over-month story, contributing products and locations, forecast, and report.")
+    st.stop()
+
 try:
-    if source == "Try the demo":
-        raw_df = pd.read_csv(DEMO_FILE)
-        filename = DEMO_FILE.name
-    elif uploaded is None:
-        st.info("Upload a CSV/Excel file, or switch to **Try the demo** to explore a complete sample report immediately.")
-        st.stop()
+    content = uploaded.getvalue()
+    filename = uploaded.name
+    filename_lower = filename.lower()
+    if filename_lower.endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
+        raw_df = read_excel_bytes(content, sheet_name)
+    elif filename_lower.endswith((".json", ".jsonl")):
+        raw_df = read_json_bytes(content)
+    elif filename_lower.endswith((".parquet", ".pq")):
+        raw_df = read_parquet_bytes(content)
+    elif filename_lower.endswith(".pdf"):
+        raw_df = read_pdf_bytes(content)
     else:
-        content = uploaded.getvalue()
-        filename = uploaded.name
-        filename_lower = filename.lower()
-        if filename_lower.endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
-            raw_df = read_excel_bytes(content, sheet_name)
-        elif filename_lower.endswith((".json", ".jsonl")):
-            raw_df = read_json_bytes(content)
-        elif filename_lower.endswith((".parquet", ".pq")):
-            raw_df = read_parquet_bytes(content)
-        elif filename_lower.endswith(".pdf"):
-            raw_df = read_pdf_bytes(content)
-        else:
-            raw_df = read_csv_bytes(content)
+        raw_df = read_csv_bytes(content)
     if raw_df.empty or len(raw_df.columns) == 0:
         st.error("This file has no data rows or columns. Choose another sheet or file.")
         st.stop()
@@ -467,6 +593,8 @@ if st.session_state.get("file_signature") != file_signature:
     st.session_state.dashboard_count = len(st.session_state.dashboard_tiles)
     st.session_state.dashboard_filter_column = "All rows"
     st.session_state.dashboard_filter_values = []
+    for key in ("sales_date_field", "sales_measure_field", "sales_product_field", "sales_location_field"):
+        st.session_state.pop(key, None)
 
 if st.session_state.get("dashboard_version") != 3:
     for key in list(st.session_state.keys()):
@@ -478,10 +606,36 @@ if st.session_state.get("dashboard_version") != 3:
     st.session_state.dashboard_version = 3
 
 clean_df, cleaning_log = clean_data(raw_df, numeric_strategy=numeric_strategy, text_strategy=text_strategy, remove_duplicates=remove_duplicates, trim_text=trim_text)
+date_options, sales_options, category_options, _ = business_column_options(raw_df)
+sales_analysis: dict[str, Any] | None = None
+sales_report = ""
+if date_options and sales_options:
+    date_guess = suggested_column(date_options, ("date", "order", "transaction", "time")) or date_options[0]
+    sales_guess = suggested_column(sales_options, ("revenue", "sales", "amount", "net", "total", "value", "price")) or sales_options[0]
+    category_guess_product = suggested_column(category_options, ("product", "item", "sku", "service", "category"))
+    category_guess_location = suggested_column(category_options, ("location", "store", "region", "city", "branch", "market"))
+    with st.sidebar:
+        st.divider()
+        st.subheader("Sales fields")
+        date_column = st.selectbox("Date", date_options, index=date_options.index(date_guess), key="sales_date_field")
+        sales_column = st.selectbox("Sales measure", sales_options, index=sales_options.index(sales_guess), key="sales_measure_field")
+        product_choices = ["Not available", *category_options]
+        location_choices = ["Not available", *category_options]
+        product_index = product_choices.index(category_guess_product) if category_guess_product in product_choices else 0
+        location_index = location_choices.index(category_guess_location) if category_guess_location in location_choices else 0
+        product_choice = st.selectbox("Product or category", product_choices, index=product_index, key="sales_product_field")
+        location_choice = st.selectbox("Location", location_choices, index=location_index, key="sales_location_field")
+    try:
+        sales_analysis = analyze_sales(raw_df, date_column, sales_column, product_choice if product_choice != "Not available" else None, location_choice if location_choice != "Not available" else None)
+        sales_report = sales_management_report(filename, date_column, sales_column, sales_analysis)
+    except (ValueError, TypeError, KeyError) as exc:
+        sales_analysis_error = str(exc)
+else:
+    sales_analysis_error = "Automatic field detection could not find both a date field and a numeric sales field."
 source_profile = profile_data(raw_df)
 clean_profile = profile_data(clean_df)
 actions = recommendations(raw_df)
-report_markdown = build_markdown_report(filename, source_profile, clean_profile, cleaning_log, actions)
+quality_report_markdown = build_markdown_report(filename, source_profile, clean_profile, cleaning_log, actions)
 
 st.markdown(f"<div class='section-kicker'>WORKSPACE&nbsp;&nbsp; / &nbsp;&nbsp;{filename}</div>", unsafe_allow_html=True)
 metric_cols = st.columns(4)
@@ -490,7 +644,7 @@ metric_cols[1].metric("Fields", f"{source_profile['columns']:,}", border=True)
 metric_cols[2].metric("Missing values", f"{source_profile['missing_cells']:,}", delta=f"{clean_profile['missing_cells'] - source_profile['missing_cells']:+,} after cleaning", delta_color="inverse", border=True)
 metric_cols[3].metric("Duplicate rows", f"{source_profile['duplicate_rows']:,}", border=True)
 
-overview_tab, cleaning_tab, charts_tab, insights_tab, chat_tab = st.tabs([":material/database: Explore", ":material/cleaning_services: Prepare", ":material/auto_awesome: Dashboard", ":material/insights: Insights", ":material/forum: Ask"])
+overview_tab, cleaning_tab, charts_tab, sales_tab, insights_tab, chat_tab = st.tabs([":material/database: Explore", ":material/cleaning_services: Prepare", ":material/auto_awesome: Dashboard", ":material/trending_down: Sales intelligence", ":material/insights: Management report", ":material/forum: Ask"])
 
 with overview_tab:
     st.subheader("Explore the signal")
@@ -677,18 +831,97 @@ with charts_tab:
         st.download_button("Export dashboard layout", json.dumps(layout, indent=2, default=str), file_name=f"{Path(dashboard_name.strip() or 'dashboard').stem}_dashboard.json", mime="application/json", key="dashboard_download_layout", icon=":material/download:")
     st.caption("Layout exports hold chart settings only; uploaded data stays in this session.")
 
+with sales_tab:
+    st.subheader("Sales performance briefing")
+    if sales_analysis is None:
+        st.warning("Sales analysis needs a readable date and numeric sales measure. Choose matching fields in the sidebar, or upload a table with those columns.")
+        st.caption(locals().get("sales_analysis_error", "Date or sales columns were not detected in this file."))
+    else:
+        result = sales_analysis
+        monthly = result["monthly"]
+        latest_label = monthly.iloc[-1]["_month"].strftime("%b %Y")
+        prior_label = monthly.iloc[-2]["_month"].strftime("%b %Y") if len(monthly) >= 2 else "—"
+        if result["change_pct"] is not None and result["change_pct"] <= -25:
+            st.error(f"Sales fell {abs(result['change_pct']):.1f}% in {latest_label} versus {prior_label}. The breakdown below shows where the change is concentrated.", icon=":material/trending_down:")
+        elif result["change_pct"] is not None and result["change_pct"] < 0:
+            st.warning(f"Sales fell {abs(result['change_pct']):.1f}% in {latest_label} versus {prior_label}; this is below the 25% alert threshold.", icon=":material/monitoring:")
+        elif result["change_pct"] is not None:
+            st.success(f"Sales rose {result['change_pct']:.1f}% in {latest_label} versus {prior_label}.", icon=":material/trending_up:")
+        else:
+            st.info("At least two consecutive months with nonzero prior sales are needed for a percentage comparison.")
+        summary_cols = st.columns(4)
+        summary_cols[0].metric(f"Sales · {prior_label}", f"{result['previous']:,.2f}" if result["previous"] is not None else "—", border=True)
+        summary_cols[1].metric(f"Sales · {latest_label}", f"{result['current']:,.2f}", border=True)
+        summary_cols[2].metric("Month-over-month", f"{result['change_pct']:+.1f}%" if result["change_pct"] is not None else "—", border=True)
+        forecast_label = result["forecast_month"].strftime("%b %Y")
+        summary_cols[3].metric(f"Next month · {forecast_label}", f"{result['forecast']:,.2f}" if result["forecast"] is not None else "Need 3+ months", border=True)
+
+        chart_col, method_col = st.columns([1.65, 1])
+        with chart_col:
+            st.markdown("#### Monthly sales trajectory")
+            actual_chart = alt.Chart(monthly).mark_line(color="#69f0d0", strokeWidth=3, point=alt.OverlayMarkDef(filled=True, size=70)).encode(
+                x=alt.X("Month:T", title="Month", axis=alt.Axis(format="%b %Y", labelColor="#aab8ca", titleColor="#d5deeb", gridColor="#263547")),
+                y=alt.Y("Sales:Q", title="Sales", axis=alt.Axis(format="~s", labelColor="#aab8ca", titleColor="#d5deeb", gridColor="#263547")),
+                tooltip=[alt.Tooltip("Month:T", format="%B %Y"), alt.Tooltip("Sales:Q", format=",.2f")],
+            )
+            trajectory = actual_chart
+            if result["forecast"] is not None:
+                forecast_frame = pd.DataFrame([{"Month": result["forecast_month"].to_timestamp(), "Forecast": result["forecast"], "Low": result["forecast_low"], "High": result["forecast_high"]}])
+                interval = alt.Chart(forecast_frame).mark_rule(color="#b49aff", strokeDash=[5, 4], strokeWidth=2).encode(x="Month:T", y="Low:Q", y2="High:Q", tooltip=[alt.Tooltip("Low:Q", format=",.2f"), alt.Tooltip("High:Q", format=",.2f")])
+                point = alt.Chart(forecast_frame).mark_point(color="#b49aff", filled=True, size=180, shape="diamond").encode(x="Month:T", y=alt.Y("Forecast:Q"), tooltip=[alt.Tooltip("Month:T", format="%B %Y", title="Forecast month"), alt.Tooltip("Forecast:Q", format=",.2f", title="Estimate")])
+                trajectory = actual_chart + interval + point
+            st.altair_chart(trajectory.configure(background="transparent", view=alt.ViewConfig(strokeOpacity=0), padding=10), width="stretch", theme="streamlit")
+            st.caption("Mint = observed monthly sales · lilac diamond/range = next-month trend estimate and residual-based range.")
+        with method_col:
+            with st.container(border=True):
+                st.markdown("#### Analysis coverage")
+                st.write(f"**{result['valid_rows']:,}** rows used · **{result['invalid_rows']:,}** excluded for an unreadable date or sales value")
+                st.write(f"{result['first_date']:%d %b %Y} — {result['last_date']:%d %b %Y}")
+                st.caption(result["partial_month_note"])
+                st.caption("The forecast uses a straight-line trend over up to six monthly totals. Use it as a planning signal, not a guarantee.")
+
+        st.markdown("#### Where the change is concentrated")
+        st.caption("Contribution ranks show arithmetic attribution to the net change. They identify where to investigate and do not prove the cause.")
+        breakdown_cols = st.columns(2)
+        for column, label, key in ((breakdown_cols[0], "Products / categories", "products"), (breakdown_cols[1], "Locations", "locations")):
+            with column:
+                with st.container(border=True):
+                    st.markdown(f"**{label}**")
+                    table = result[key]
+                    if table.empty:
+                        st.caption("Choose a matching field in the sidebar to see this breakdown.")
+                    else:
+                        st.dataframe(table, width="stretch", hide_index=True, height=290, column_config={"Previous sales": st.column_config.NumberColumn(format="%.2f"), "Latest sales": st.column_config.NumberColumn(format="%.2f"), "Decline": st.column_config.NumberColumn(format="%.2f"), "Contribution to net decline %": st.column_config.NumberColumn(format="%.1f%%"), "Change %": st.column_config.NumberColumn(format="%.1f%%")})
+        if not result["product_locations"].empty:
+            with st.container(border=True):
+                st.markdown("**Product × location hotspots**")
+                st.dataframe(result["product_locations"], width="stretch", hide_index=True, column_config={"Previous sales": st.column_config.NumberColumn(format="%.2f"), "Latest sales": st.column_config.NumberColumn(format="%.2f"), "Decline": st.column_config.NumberColumn(format="%.2f")})
+        with st.expander("Corrective actions to validate", expanded=True):
+            if result["change_pct"] is not None and result["change_pct"] < 0:
+                st.markdown("- Compare stock availability, price changes, promotions, returns, and order count for the largest declining products and locations.\n- Ask owners in the highest-contributing locations to confirm operational changes during the period.\n- Check whether the latest month is complete before comparing totals; use month-to-date comparisons when needed.\n- Set a weekly recovery target for the largest contributors and monitor sales alongside margin.")
+            else:
+                st.markdown("- Monitor the leading product and location segments weekly.\n- Compare sales alongside order volume and margin to understand the quality of growth.\n- Validate the latest month is complete before making a period decision.")
+
 with insights_tab:
-    st.subheader("Decision-ready summary")
-    st.markdown(report_markdown)
-    st.download_button("Download analysis report (Markdown)", report_markdown, file_name=f"{Path(filename).stem}_analysis.md", mime="text/markdown", key="download_report")
+    st.subheader("Management report")
+    if sales_report:
+        st.markdown(sales_report)
+        st.download_button("Download management report · Markdown", sales_report, file_name=f"{Path(filename).stem}_management_report.md", mime="text/markdown", key="download_management_report")
+        report_html = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Management report</title><style>body{margin:0;background:#080d16;color:#eef3fb;font:16px/1.7 Arial,sans-serif}.wrap{max-width:920px;margin:40px auto;padding:34px;background:#111a28;border:1px solid #34445a;border-radius:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.8 Arial,sans-serif}h1{color:#83e9d5}</style></head><body><main class='wrap'><h1>Lumen · Management report</h1><pre>" + html.escape(sales_report) + "</pre></main></body></html>"
+        st.download_button("Download styled report · HTML", report_html, file_name=f"{Path(filename).stem}_management_report.html", mime="text/html", key="download_management_report_html")
+    else:
+        st.info("A management report will be generated once a date and sales field are selected.")
+        st.markdown(quality_report_markdown)
+        st.download_button("Download data-quality report · Markdown", quality_report_markdown, file_name=f"{Path(filename).stem}_analysis.md", mime="text/markdown", key="download_report")
     json_report = {
         "source_file": filename,
         "source_profile": source_profile,
         "cleaned_profile": clean_profile,
         "cleaning_log": cleaning_log,
         "recommendations": actions,
+        "sales_analysis": sales_report,
     }
-    st.download_button("Download machine-readable report (JSON)", json.dumps(json_report, indent=2, default=str), file_name=f"{Path(filename).stem}_analysis.json", mime="application/json", key="download_report_json")
+    st.download_button("Download analysis bundle · JSON", json.dumps(json_report, indent=2, default=str), file_name=f"{Path(filename).stem}_analysis.json", mime="application/json", key="download_report_json")
     st.markdown("#### Suggested next steps")
     for item in actions:
         with st.container(border=True):
