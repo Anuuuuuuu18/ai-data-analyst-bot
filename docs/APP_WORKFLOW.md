@@ -1,6 +1,6 @@
 # Analyst workflow
 
-1. Start in demo mode or upload a CSV/TSV, JSON records file, or Excel workbook. Select the sheet for an Excel upload.
+1. Start in demo mode or upload delimited text (CSV/TSV/TXT), JSON/JSONL, Parquet, a PDF, or an Excel/OpenDocument workbook. Select the sheet for a workbook upload. PDFs with tables or selectable text are extracted directly; scanned pages use English OCR.
 2. Review the original dataset profile: size, column types, missing values, duplicates, and numeric fields.
 3. Select numeric/text missing-value strategies, duplicate removal, and whitespace cleanup. The app runs these choices on an in-memory copy and shows a change log.
 4. Inspect the cleaned preview. Export the cleaned CSV or Excel workbook only after reviewing the changes.
