@@ -468,14 +468,14 @@ if st.session_state.get("file_signature") != file_signature:
     st.session_state.dashboard_filter_column = "All rows"
     st.session_state.dashboard_filter_values = []
 
-if st.session_state.get("dashboard_version") != 2:
+if st.session_state.get("dashboard_version") != 3:
     for key in list(st.session_state.keys()):
         if key.startswith("dashboard_tile_"):
             del st.session_state[key]
     st.session_state.dashboard_tiles = default_dashboard(raw_df)
     st.session_state.dashboard_count = len(st.session_state.dashboard_tiles)
     st.session_state.dashboard_name = f"{Path(filename).stem.replace('_', ' ').title()} · overview"
-    st.session_state.dashboard_version = 2
+    st.session_state.dashboard_version = 3
 
 clean_df, cleaning_log = clean_data(raw_df, numeric_strategy=numeric_strategy, text_strategy=text_strategy, remove_duplicates=remove_duplicates, trim_text=trim_text)
 source_profile = profile_data(raw_df)
