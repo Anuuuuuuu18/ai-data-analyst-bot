@@ -1,0 +1,30 @@
+order_date,region,product,units,unit_price,revenue,rating,sales_channel
+2025-01-03,North,Trail Bottle,3,24.50,73.50,5,Web
+2025-01-04,South,Day Pack,2,68.00,136.00,4,Store
+2025-01-05,East,Trail Bottle,5,24.50,122.50,5,Web
+2025-01-06,West,Camp Lamp,1,42.00,42.00,3,Partner
+2025-01-07,North,Day Pack,4,68.00,272.00,5,Web
+2025-01-08,South,Camp Lamp,2,42.00,84.00,,Store
+2025-01-09,East,Trail Bottle,8,24.50,196.00,4,Partner
+2025-01-10,West,Day Pack,1,68.00,68.00,3,Web
+2025-01-11,North,Camp Lamp,3,42.00,126.00,4,Store
+2025-01-12,South,Trail Bottle,6,24.50,147.00,5,Web
+2025-01-13,East,Day Pack,2,68.00,136.00,4,Store
+2025-01-14,West,Camp Lamp,4,42.00,168.00,5,Partner
+2025-01-15,North,Trail Bottle,2,24.50,49.00,4,Web
+2025-01-16,South,Day Pack,3,68.00,204.00,5,Store
+2025-01-17,East,Camp Lamp,1,42.00,42.00,2,Web
+2025-01-18,West,Trail Bottle,7,24.50,171.50,4,Partner
+2025-01-19,North,Day Pack,2,68.00,136.00,5,Store
+2025-01-20,South,Camp Lamp,,42.00,,3,Web
+2025-01-21,East,Trail Bottle,4,24.50,98.00,5,Store
+2025-01-22,West,Day Pack,2,68.00,136.00,4,Partner
+2025-01-23,North,Camp Lamp,120,42.00,5040.00,5,Web
+2025-01-24,South,Trail Bottle,3,24.50,73.50,4,Store
+2025-01-25,East,Day Pack,1,68.00,68.00,5,Web
+2025-01-26,West,Camp Lamp,2,42.00,84.00,4,Store
+2025-01-03,North,Trail Bottle,3,24.50,73.50,5,Web
+2025-01-27, North ,Trail Bottle ,3,24.50,73.50,5,Web
+2025-01-28,South,Day Pack,2,68.00,136.00,4,Store
+2025-01-29,East,Camp Lamp,3,42.00,126.00,4,Web
+2025-01-30,West,Trail Bottle,5,24.50,122.50,5,Partner
