@@ -195,7 +195,11 @@ def make_chart(
     if chart_type == "Line":
         if not y_column:
             raise ValueError("Choose a numeric measure for a line chart.")
-        x_type = "temporal" if pd.api.types.is_datetime64_any_dtype(frame[x_column]) else "quantitative" if pd.api.types.is_numeric_dtype(frame[x_column]) else "nominal"
+        x_type = "temporal" if x_column in date_columns(frame) else "quantitative" if pd.api.types.is_numeric_dtype(frame[x_column]) else "nominal"
+        if x_type == "temporal":
+            chart_frame = chart_frame.copy()
+            chart_frame[x_column] = pd.to_datetime(chart_frame[x_column], errors="coerce", format="mixed")
+            base = alt.Chart(chart_frame).properties(height=310)
         chart = base.mark_line(point=alt.OverlayMarkDef(size=62, filled=True), color="#69f0d0", strokeWidth=3).encode(
             x=alt.X(field=x_column, type=x_type, title=x_column, axis=axis_style),
             y=alt.Y(field=y_column, type="quantitative", aggregate=aggregation.lower(), title=f"{aggregation} {y_column}", axis=axis_style),
@@ -246,28 +250,58 @@ def build_markdown_report(
     return "\n".join(lines)
 
 
+def date_columns(frame: pd.DataFrame) -> list[str]:
+    """Find native or confidently parseable date columns for sensible time-series defaults."""
+    found = []
+    for column in frame.columns:
+        series = frame[column]
+        if pd.api.types.is_datetime64_any_dtype(series):
+            found.append(column)
+            continue
+        if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
+            continue
+        sample = series.dropna().head(200)
+        if sample.empty:
+            continue
+        date_named = any(token in str(column).casefold() for token in ("date", "time", "day"))
+        date_shaped = sample.astype(str).str.contains(r"[-/:]").mean() > .7
+        if not date_named and not date_shaped:
+            continue
+        parsed = pd.to_datetime(sample, errors="coerce", format="mixed")
+        if parsed.notna().mean() >= .8 and parsed.nunique() >= 3:
+            found.append(column)
+    return found
+
+
 def default_dashboard(frame: pd.DataFrame) -> list[dict[str, Any]]:
     """Choose useful starter tiles based on the uploaded columns."""
     numeric = list(frame.select_dtypes(include="number").columns)
-    categories = [column for column in frame.columns if column not in numeric]
+    priorities = ("revenue", "sales", "amount", "profit", "total", "value", "price")
+    measure = next((column for word in priorities for column in numeric if word in str(column).casefold()), numeric[0] if numeric else None)
+    dates = date_columns(frame)
+    categories = [column for column in frame.columns if column not in numeric and (column not in dates or not numeric)]
     tiles: list[dict[str, Any]] = []
-    if numeric and categories:
-        tiles.append({"title": f"{numeric[0]} by {categories[0]}", "chart_type": "Bar", "x_column": categories[0], "category_column": categories[0], "y_column": numeric[0], "aggregation": "Sum"})
+    if measure and dates:
+        tiles.append({"title": f"{measure} over time", "chart_type": "Line", "x_column": dates[0], "category_column": None, "y_column": measure, "aggregation": "Sum"})
+    elif measure and categories:
+        tiles.append({"title": f"{measure} by {categories[0]}", "chart_type": "Bar", "x_column": categories[0], "category_column": categories[0], "y_column": measure, "aggregation": "Sum"})
     elif categories:
         tiles.append({"title": f"Rows by {categories[0]}", "chart_type": "Count", "x_column": categories[0], "category_column": categories[0], "y_column": None, "aggregation": "Count"})
-    elif numeric:
-        tiles.append({"title": f"{numeric[0]} total", "chart_type": "Metric", "x_column": numeric[0], "category_column": None, "y_column": numeric[0], "aggregation": "Sum"})
-    if numeric:
-        tiles.append({"title": f"{numeric[0]} distribution", "chart_type": "Histogram", "x_column": numeric[0], "category_column": None, "y_column": None, "aggregation": "Count"})
+    elif measure:
+        tiles.append({"title": f"{measure} total", "chart_type": "Metric", "x_column": measure, "category_column": None, "y_column": measure, "aggregation": "Sum"})
+    if measure:
+        tiles.append({"title": f"{measure} distribution", "chart_type": "Histogram", "x_column": measure, "category_column": None, "y_column": None, "aggregation": "Count"})
     if len(numeric) >= 2:
-        tiles.append({"title": f"{numeric[0]} vs {numeric[1]}", "chart_type": "Scatter", "x_column": numeric[0], "category_column": None, "y_column": numeric[1], "aggregation": "Mean"})
+        second_measure = next((column for column in numeric if column != measure), numeric[1])
+        tiles.append({"title": f"{measure} vs {second_measure}", "chart_type": "Scatter", "x_column": measure, "category_column": None, "y_column": second_measure, "aggregation": "Mean"})
     while len(tiles) < 3 and (numeric or categories):
-        if numeric and categories:
-            tiles.append({"title": f"Average {numeric[0]} by {categories[min(len(tiles), len(categories)-1)]}", "chart_type": "Bar", "x_column": categories[min(len(tiles), len(categories)-1)], "category_column": categories[min(len(tiles), len(categories)-1)], "y_column": numeric[0], "aggregation": "Mean"})
+        if measure and categories:
+            group = categories[min(len(tiles), len(categories)-1)]
+            tiles.append({"title": f"Average {measure} by {group}", "chart_type": "Bar", "x_column": group, "category_column": group, "y_column": measure, "aggregation": "Mean"})
         elif categories:
             tiles.append({"title": f"Rows by {categories[min(len(tiles), len(categories)-1)]}", "chart_type": "Count", "x_column": categories[min(len(tiles), len(categories)-1)], "category_column": categories[min(len(tiles), len(categories)-1)], "y_column": None, "aggregation": "Count"})
         else:
-            tiles.append({"title": f"Average {numeric[0]}", "chart_type": "Metric", "x_column": numeric[0], "category_column": None, "y_column": numeric[0], "aggregation": "Mean"})
+            tiles.append({"title": f"Average {measure}", "chart_type": "Metric", "x_column": measure, "category_column": None, "y_column": measure, "aggregation": "Mean"})
     return tiles[:6]
 
 
@@ -434,6 +468,15 @@ if st.session_state.get("file_signature") != file_signature:
     st.session_state.dashboard_filter_column = "All rows"
     st.session_state.dashboard_filter_values = []
 
+if st.session_state.get("dashboard_version") != 2:
+    for key in list(st.session_state.keys()):
+        if key.startswith("dashboard_tile_"):
+            del st.session_state[key]
+    st.session_state.dashboard_tiles = default_dashboard(raw_df)
+    st.session_state.dashboard_count = len(st.session_state.dashboard_tiles)
+    st.session_state.dashboard_name = f"{Path(filename).stem.replace('_', ' ').title()} · overview"
+    st.session_state.dashboard_version = 2
+
 clean_df, cleaning_log = clean_data(raw_df, numeric_strategy=numeric_strategy, text_strategy=text_strategy, remove_duplicates=remove_duplicates, trim_text=trim_text)
 source_profile = profile_data(raw_df)
 clean_profile = profile_data(clean_df)
@@ -515,10 +558,6 @@ with charts_tab:
     chart_types = ["Count"] + (["Bar", "Line", "Scatter", "Histogram", "Metric"] if numeric_columns else [])
     defaults = default_dashboard(clean_df)
     tiles = list(st.session_state.get("dashboard_tiles", defaults)) or defaults
-    chart_count = st.slider("Number of charts", 1, 6, min(6, max(1, len(tiles))), key="dashboard_count")
-    while len(tiles) < chart_count:
-        tiles.append(defaults[len(tiles) % len(defaults)])
-    tiles = tiles[:chart_count]
     filter_columns = ["All rows", *list(clean_df.columns)]
     current_filter = st.session_state.get("dashboard_filter_column", "All rows")
     if current_filter not in filter_columns:
@@ -542,6 +581,10 @@ with charts_tab:
 
     with st.expander(":material/tune: Customize visuals", expanded=False):
         st.caption("Choose the story each visual tells. Your changes update the dashboard immediately.")
+        chart_count = st.slider("Number of charts", 1, 6, min(6, max(1, len(tiles))), key="dashboard_count")
+        while len(tiles) < chart_count:
+            tiles.append(defaults[len(tiles) % len(defaults)])
+        tiles = tiles[:chart_count]
         draft_tiles = []
         for index, tile in enumerate(tiles):
             safe_type = tile.get("chart_type") if tile.get("chart_type") in chart_types else chart_types[0]
