@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,64 @@ def read_json_bytes(content: bytes) -> pd.DataFrame:
         return pd.read_json(io.BytesIO(content))
     except ValueError:
         return pd.read_json(io.BytesIO(content), lines=True)
+
+
+@st.cache_data(show_spinner=False)
+def read_parquet_bytes(content: bytes) -> pd.DataFrame:
+    return pd.read_parquet(io.BytesIO(content))
+
+
+@st.cache_data(show_spinner=False)
+def read_pdf_bytes(content: bytes) -> pd.DataFrame:
+    """Extract PDF tables/text, using OCR for scanned pages when available."""
+    import pdfplumber
+
+    table_records: list[dict[str, Any]] = []
+    page_text: list[dict[str, Any]] = []
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        if len(pdf.pages) > 1_000:
+            raise ValueError("This PDF has more than 1,000 pages. Split it into smaller files and upload one part at a time.")
+        for page_number, page in enumerate(pdf.pages, start=1):
+            tables = page.extract_tables() or []
+            for table_number, table in enumerate(tables, start=1):
+                rows = [[cell.strip() if isinstance(cell, str) else cell for cell in row] for row in table]
+                rows = [row for row in rows if any(cell is not None and str(cell).strip() for cell in row)]
+                if not rows:
+                    continue
+                header = [str(cell).strip() if cell is not None and str(cell).strip() else f"Column {index + 1}" for index, cell in enumerate(rows[0])]
+                header = [f"{name} ({index + 1})" if header[:index].count(name) else name for index, name in enumerate(header)]
+                for row in rows[1:]:
+                    values = (row + [None] * len(header))[: len(header)]
+                    table_records.append({**dict(zip(header, values)), "source_page": page_number, "source_table": table_number})
+            if not tables:
+                text = page.extract_text() or ""
+                if text.strip():
+                    page_text.append({"source_page": page_number, "page_text": text.strip()})
+    if table_records:
+        return pd.DataFrame(table_records)
+    if page_text:
+        return pd.DataFrame(page_text)
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+    except ImportError as exc:
+        raise ValueError("This PDF is scanned. OCR support is unavailable in this environment; install PyMuPDF, pytesseract, and Tesseract OCR, or upload a searchable PDF.") from exc
+    if not shutil.which("tesseract"):
+        raise ValueError("This PDF is scanned, but the Tesseract OCR engine is not installed. Upload a searchable PDF or install Tesseract OCR.")
+    ocr_records: list[dict[str, Any]] = []
+    with fitz.open(stream=content, filetype="pdf") as pdf:
+        if len(pdf) > 100:
+            raise ValueError("This scanned PDF has more than 100 pages. Split it into smaller files and upload one part at a time.")
+        for page_number, page in enumerate(pdf, start=1):
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False)
+            image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+            text = pytesseract.image_to_string(image, lang="eng").strip()
+            if text:
+                ocr_records.append({"source_page": page_number, "page_text": text})
+    if ocr_records:
+        return pd.DataFrame(ocr_records)
+    raise ValueError("OCR found no readable text. Check the scan quality or upload a searchable PDF.")
 
 
 def openai_api_key() -> str | None:
@@ -254,8 +313,10 @@ with st.sidebar:
     uploaded = None
     sheet_name = ""
     if source == "Upload my file":
-        uploaded = st.file_uploader("Choose a CSV, TSV, JSON, or Excel file", type=["csv", "tsv", "json", "xlsx", "xls"], help="Your file is processed in this Streamlit session. It is not saved to this repository.")
-        if uploaded is not None and uploaded.name.lower().endswith((".xlsx", ".xls")):
+        supported_types = ["csv", "tsv", "txt", "json", "jsonl", "parquet", "pdf", "xlsx", "xlsm", "xls", "xlsb", "ods", "xltx", "xltm"]
+        uploaded = st.file_uploader("Choose a PDF, spreadsheet, or data file", type=supported_types, help="Supports CSV/TSV/text, JSON/JSONL, Parquet, PDF, and Excel or OpenDocument spreadsheets. Files are processed in this session and are not saved to this repository.")
+        filename_lower = uploaded.name.lower() if uploaded is not None else ""
+        if uploaded is not None and filename_lower.endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
             try:
                 workbook = pd.ExcelFile(io.BytesIO(uploaded.getvalue()))
                 sheet_name = st.selectbox("Workbook sheet", workbook.sheet_names)
@@ -286,10 +347,15 @@ try:
     else:
         content = uploaded.getvalue()
         filename = uploaded.name
-        if filename.lower().endswith((".xlsx", ".xls")):
+        filename_lower = filename.lower()
+        if filename_lower.endswith((".xlsx", ".xlsm", ".xls", ".xlsb", ".ods", ".xltx", ".xltm")):
             raw_df = read_excel_bytes(content, sheet_name)
-        elif filename.lower().endswith(".json"):
+        elif filename_lower.endswith((".json", ".jsonl")):
             raw_df = read_json_bytes(content)
+        elif filename_lower.endswith((".parquet", ".pq")):
+            raw_df = read_parquet_bytes(content)
+        elif filename_lower.endswith(".pdf"):
+            raw_df = read_pdf_bytes(content)
         else:
             raw_df = read_csv_bytes(content)
     if raw_df.empty or len(raw_df.columns) == 0:
@@ -298,6 +364,9 @@ try:
 except Exception as exc:
     st.error(f"I couldn't read this file. Check its format and try again. Details: {exc}")
     st.stop()
+
+if filename.lower().endswith(".pdf") and "page_text" in raw_df.columns:
+    st.info("No PDF tables were detected. Selectable or OCR-recognized text is organized one row per page; OCR uses English text recognition.")
 
 file_signature = hashlib.sha256((filename + str(raw_df.shape)).encode() + pd.util.hash_pandas_object(raw_df, index=True).values.tobytes()).hexdigest()
 if st.session_state.get("file_signature") != file_signature:
