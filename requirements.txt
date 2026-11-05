@@ -4,4 +4,11 @@ numpy==2.2.6
 altair==5.5.0
 openpyxl==3.1.5
 xlrd==2.0.1
+pyxlsb>=1.0.10,<2
+odfpy>=1.4.1,<2
+pyarrow<25
+pdfplumber>=0.11,<0.12
+pymupdf>=1.26,<2
+pytesseract>=0.3.13,<0.4
 openai==2.8.1
+
