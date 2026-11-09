@@ -1,11 +1,3 @@
-<p align="center"><img src="assets/portfolio-banner.svg" alt="AI Data Analyst Bot — Clean, explore, and explain data" width="100%"></p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-Data%20tools-d94f91?style=for-the-badge" alt="Python data tools">
-  <img src="https://img.shields.io/badge/Interface-Streamlit-e982b1?style=for-the-badge" alt="Streamlit interface">
-  <img src="https://img.shields.io/badge/License-MIT-cd5791?style=for-the-badge" alt="MIT license">
-</p>
-
 # AI Data Analyst Bot
 
 An end-to-end Streamlit app that turns a messy CSV or Excel workbook into a reviewable data-cleaning result, interactive charts, practical findings, and downloadable analysis files.
