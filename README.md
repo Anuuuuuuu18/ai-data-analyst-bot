@@ -33,6 +33,7 @@ On Windows PowerShell, activate with `\.venv\Scripts\Activate.ps1`; on macOS/Lin
 - PDF table/text extraction with English OCR for scanned pages, plus common Excel and OpenDocument workbook formats.
 - A configurable dashboard with 1–6 count, bar, line, scatter, histogram, and KPI tiles, plus a shared filter.
 - Downloadable dashboard layouts in JSON that can be loaded again with compatible or different datasets.
+- A snapshot-comparison workspace for CSV/TSV files, with added/removed rows, changed-cell details, schema differences, and CSV exports. Records are matched by a user-selected unique key.
 - A Markdown and JSON analysis report with cautious next-step recommendations.
 - SQLite starter queries and a reproducible pandas analysis script.
 - A local question-and-answer assistant for common dataset questions.
@@ -49,6 +50,7 @@ For a local secrets file, copy `.streamlit/secrets.example.toml` to `.streamlit/
 ```text
 app.py                         Streamlit user interface and exports
 analyst.py                     Cleaning, profiling, recommendation, SQL, and Q&A logic
+dataset_compare.py             Safe row-keyed snapshot comparison helpers
 sample_data/sales_messy.csv    Fictional demo data with intentional quality issues
 docs/                          Method, privacy, and deployment guidance
 .streamlit/config.toml         App theme and upload limits
