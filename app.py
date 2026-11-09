@@ -17,6 +17,7 @@ import pandas as pd
 import streamlit as st
 
 from analyst import answer_question, clean_data, profile_data, python_starter, recommendations, spreadsheet_safe_copy, sql_starter
+from dataset_compare import compare_snapshots
 
 
 st.set_page_config(page_title="Lumen | AI Data Analyst", page_icon=":material/auto_awesome:", layout="wide", initial_sidebar_state="collapsed")
@@ -247,7 +248,6 @@ def build_markdown_report(
     lines.extend(f"- **{item['priority']} — {item['title']}:** {item['detail']}" for item in notes)
     lines.extend(["", "## Reproducibility notes", "", "All cleaning choices are configurable in the app. Correlations and outlier flags are exploratory; they do not prove causality. Review the cleaned preview before using an export.", ""])
     return "\n".join(lines)
-
 
 def business_column_options(frame: pd.DataFrame) -> tuple[list[str], list[str], list[str], list[str]]:
     """Find likely sales-analysis fields, including numbers stored as text."""
@@ -497,8 +497,7 @@ def apply_dashboard_config(config: Any, frame: pd.DataFrame) -> None:
                 st.session_state[f"dashboard_tile_{index}_scatter_y"] = tile["y_column"]
         elif chart_type == "line":
             st.session_state[f"dashboard_tile_{index}_line_x"] = tile["x_column"]
-            st.session_state[f"dashboard_tile_{index}_line_y"] = tile["y_column"]
-            st.session_state[f"dashboard_tile_{index}_line_agg"] = tile["aggregation"]
+            st.session_state[f"dashboard_tile_{index}_line_y"] = tile["y_column"]            st.session_state[f"dashboard_tile_{index}_line_agg"] = tile["aggregation"]
         elif chart_type == "bar":
             st.session_state[f"dashboard_tile_{index}_bar_category"] = tile["category_column"]
             st.session_state[f"dashboard_tile_{index}_bar_measure"] = tile["y_column"]
@@ -644,7 +643,7 @@ metric_cols[1].metric("Fields", f"{source_profile['columns']:,}", border=True)
 metric_cols[2].metric("Missing values", f"{source_profile['missing_cells']:,}", delta=f"{clean_profile['missing_cells'] - source_profile['missing_cells']:+,} after cleaning", delta_color="inverse", border=True)
 metric_cols[3].metric("Duplicate rows", f"{source_profile['duplicate_rows']:,}", border=True)
 
-overview_tab, cleaning_tab, charts_tab, sales_tab, insights_tab, chat_tab = st.tabs([":material/database: Explore", ":material/cleaning_services: Prepare", ":material/auto_awesome: Dashboard", ":material/trending_down: Sales intelligence", ":material/insights: Management report", ":material/forum: Ask"])
+overview_tab, cleaning_tab, compare_tab, charts_tab, sales_tab, insights_tab, chat_tab = st.tabs([":material/database: Explore", ":material/cleaning_services: Prepare", ":material/compare_arrows: Compare", ":material/auto_awesome: Dashboard", ":material/trending_down: Sales intelligence", ":material/insights: Management report", ":material/forum: Ask"])
 
 with overview_tab:
     st.subheader("Explore the signal")
@@ -697,6 +696,88 @@ with cleaning_tab:
     st.download_button("Download cleaned Excel workbook", excel_buffer.getvalue(), file_name=f"{Path(filename).stem}_cleaned.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="download_clean_xlsx")
     st.caption("Spreadsheet formula-like text is prefixed in downloads so spreadsheet applications treat it as text.")
 
+with compare_tab:
+    st.subheader("Compare two dataset snapshots")
+    st.caption(f"Your current upload, `{filename}`, is the baseline. Add a second CSV or TSV to see what changed.")
+    comparison_upload = st.file_uploader(
+        "Upload the comparison snapshot",
+        type=["csv", "tsv", "txt"],
+        key="snapshot_comparison_upload",
+        help="The comparison file is read for this session and is not saved by the app.",
+    )
+    if comparison_upload is None:
+        st.info("Choose a second CSV or TSV to compare it with the current upload.")
+    else:
+        try:
+            comparison_df = read_csv_bytes(comparison_upload.getvalue())
+            if comparison_df.empty or len(comparison_df.columns) == 0:
+                st.error("The comparison file has no data rows or columns.")
+            else:
+                shared_columns = [column for column in raw_df.columns if column in comparison_df.columns]
+                if not shared_columns:
+                    st.warning("The two files do not share any column names, so records cannot be matched.")
+                else:
+                    likely_keys = ("id", "record_id", "order_id", "transaction_id", "patient_id", "customer_id")
+                    default_key = next(
+                        (column for column in shared_columns if str(column).casefold() in likely_keys),
+                        None,
+                    )
+                    default_keys = [default_key] if default_key is not None else []
+                    key_columns = st.multiselect(
+                        "Record key",
+                        options=shared_columns,
+                        default=default_keys,
+                        help="Select column(s) that uniquely identify each row in both files. Repeated or blank keys are reported instead of guessed.",
+                        key="snapshot_comparison_keys",
+                    )
+                    if not key_columns:
+                        st.info("Select at least one shared column that uniquely identifies a record.")
+                    else:
+                        try:
+                            comparison = compare_snapshots(raw_df, comparison_df, key_columns)
+                            st.caption(
+                                f"Comparing {len(raw_df):,} baseline rows with "
+                                f"{len(comparison_df):,} rows from {comparison_upload.name}."
+                            )
+                            summary_cols = st.columns(4)
+                            summary_cols[0].metric("Added rows", f"{comparison['added_count']:,}")
+                            summary_cols[1].metric("Removed rows", f"{comparison['removed_count']:,}")
+                            summary_cols[2].metric("Changed records", f"{comparison['changed_rows_count']:,}")
+                            summary_cols[3].metric("Changed cells", f"{comparison['changed_cells_count']:,}")
+
+                            schema_left, schema_right = st.columns(2)
+                            with schema_left:
+                                st.markdown("#### New columns")
+                                st.write(", ".join(map(str, comparison["added_columns"])) or "No new columns")
+                            with schema_right:
+                                st.markdown("#### Removed columns")
+                                st.write(", ".join(map(str, comparison["removed_columns"])) or "No removed columns")
+
+                            st.markdown("#### Changed cells")
+                            if comparison["changed_cells"].empty:
+                                st.success("No changed cell values found for records with matching keys.")
+                            else:
+                                st.dataframe(comparison["changed_cells"].head(500), width="stretch", hide_index=True)
+                            export_cols = st.columns(3)
+                            for column, result_key, label, file_suffix in (
+                                (export_cols[0], "changed_cells", "Download changed cells", "changed_cells"),
+                                (export_cols[1], "added_rows", "Download added rows", "added_rows"),
+                                (export_cols[2], "removed_rows", "Download removed rows", "removed_rows"),
+                            ):
+                                export_frame = spreadsheet_safe_copy(comparison[result_key])
+                                column.download_button(
+                                    label,
+                                    export_frame.to_csv(index=False).encode("utf-8-sig"),
+                                    file_name=f"{Path(filename).stem}_{file_suffix}.csv",
+                                    mime="text/csv",
+                                    key=f"snapshot_{file_suffix}_download",
+                                )
+                            st.caption("Rows are matched only by the selected key. Review the key choice and source files before acting on the diff.")
+                        except ValueError as exc:
+                            st.error(f"These snapshots could not be compared safely: {exc}")
+        except Exception as exc:
+            st.error(f"Could not read the comparison file. Check that it is a valid CSV or TSV. Details: {exc}")
+
 with charts_tab:
     st.subheader(st.session_state.get("dashboard_name", "Your data, in focus"))
     st.caption("An interactive view of the cleaned dataset. Filter once and every visual follows.")
@@ -747,8 +828,7 @@ with charts_tab:
             with st.container(border=True):
                 st.markdown(f"**Visual {index + 1}**")
                 title_cols = st.columns([2, 1])
-                title = title_cols[0].text_input("Title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)
-                chart_type = title_cols[1].selectbox("Visual type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
+                title = title_cols[0].text_input("Title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)                chart_type = title_cols[1].selectbox("Visual type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
                 x_column = clean_df.columns[0]
                 category_column = None
                 y_column = None
@@ -976,4 +1056,3 @@ with chat_tab:
 
 st.divider()
 st.caption("The original upload is never overwritten. Review cleaning logs and validate domain-specific recommendations before acting.")
-
