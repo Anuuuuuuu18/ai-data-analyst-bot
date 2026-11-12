@@ -829,7 +829,8 @@ with charts_tab:
             with st.container(border=True):
                 st.markdown(f"**Visual {index + 1}**")
                 title_cols = st.columns([2, 1])
-                title = title_cols[0].text_input("Title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)                chart_type = title_cols[1].selectbox("Visual type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
+                title = title_cols[0].text_input("Title", value=st.session_state.get(title_key, tile.get("title", f"Chart {index + 1}")), max_chars=80, key=title_key)
+                chart_type = title_cols[1].selectbox("Visual type", chart_types, index=chart_types.index(st.session_state.get(type_key, safe_type)) if st.session_state.get(type_key, safe_type) in chart_types else 0, key=type_key)
                 x_column = clean_df.columns[0]
                 category_column = None
                 y_column = None
