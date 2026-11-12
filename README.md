@@ -10,6 +10,8 @@
 
 An end-to-end Streamlit app that turns a messy CSV or Excel workbook into a reviewable data-cleaning result, interactive charts, practical findings, and downloadable analysis files.
 
+**[🚀 Try the live demo](https://ai-data-bot-2026.streamlit.app/)**
+
 ## Get an outcome in three steps
 
 ```bash
