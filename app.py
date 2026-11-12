@@ -497,7 +497,8 @@ def apply_dashboard_config(config: Any, frame: pd.DataFrame) -> None:
                 st.session_state[f"dashboard_tile_{index}_scatter_y"] = tile["y_column"]
         elif chart_type == "line":
             st.session_state[f"dashboard_tile_{index}_line_x"] = tile["x_column"]
-            st.session_state[f"dashboard_tile_{index}_line_y"] = tile["y_column"]            st.session_state[f"dashboard_tile_{index}_line_agg"] = tile["aggregation"]
+            st.session_state[f"dashboard_tile_{index}_line_y"] = tile["y_column"]
+            st.session_state[f"dashboard_tile_{index}_line_agg"] = tile["aggregation"]
         elif chart_type == "bar":
             st.session_state[f"dashboard_tile_{index}_bar_category"] = tile["category_column"]
             st.session_state[f"dashboard_tile_{index}_bar_measure"] = tile["y_column"]
